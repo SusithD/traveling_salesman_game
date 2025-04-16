@@ -3,18 +3,31 @@ City selection interface for the Traveling Salesman Problem game
 """
 import tkinter as tk
 from tkinter import ttk, messagebox
+import logging
+import traceback
+
+logger = logging.getLogger("CitySelection")
 
 class CitySelectionFrame(ttk.Frame):
     def __init__(self, parent, game_state):
+        logger.info("Initializing CitySelectionFrame")
         super().__init__(parent, padding="10")
         self.game_state = game_state
         self.city_vars = {}
         
         # Setup the frame
-        self.create_widgets()
+        try:
+            self.create_widgets()
+            logger.info("CitySelectionFrame initialized successfully")
+        except Exception as e:
+            logger.error(f"Error in CitySelectionFrame initialization: {str(e)}")
+            logger.error(traceback.format_exc())
+            messagebox.showerror("Initialization Error", f"Error setting up city selection: {str(e)}")
+            raise
         
     def create_widgets(self):
         """Create the widgets for city selection"""
+        logger.debug("Creating widgets for CitySelectionFrame")
         # Title
         ttk.Label(self, text="Select Cities to Visit", font=("Arial", 12, "bold")).grid(
             row=0, column=0, columnspan=5, sticky=tk.W, pady=5)
@@ -57,6 +70,7 @@ class CitySelectionFrame(ttk.Frame):
         self.columnconfigure(0, weight=1)
         self.rowconfigure(2, weight=1)
         self.rowconfigure(4, weight=1)
+        logger.debug("Widgets created successfully")
     
     def _on_frame_configure(self, event=None):
         """Reset the scroll region to encompass the inner frame"""
@@ -70,6 +84,7 @@ class CitySelectionFrame(ttk.Frame):
     
     def update_cities_display(self):
         """Update the city selection checkboxes based on game state"""
+        logger.debug("Updating city selection checkboxes")
         # Clear existing widgets
         for widget in self.city_frame.winfo_children():
             widget.destroy()
@@ -99,9 +114,11 @@ class CitySelectionFrame(ttk.Frame):
         
         # Update the distance matrix display
         self.update_distance_matrix()
+        logger.debug("City selection checkboxes updated")
     
     def update_distance_matrix(self):
         """Display the distance matrix in the UI"""
+        logger.debug("Updating distance matrix display")
         # Clear existing widgets
         for widget in self.matrix_inner_frame.winfo_children():
             widget.destroy()
@@ -125,21 +142,27 @@ class CitySelectionFrame(ttk.Frame):
                 else:
                     distance = distances.get((city1, city2)) or distances.get((city2, city1))
                     ttk.Label(self.matrix_inner_frame, text=str(distance)).grid(row=i+1, column=j+1, padx=2, pady=2)
+        logger.debug("Distance matrix display updated")
     
     def select_all_cities(self):
         """Select all available cities"""
+        logger.debug("Selecting all cities")
         home_city = self.game_state.home_city
         for city, var in self.city_vars.items():
             if city != home_city:
                 var.set(True)
+        logger.debug("All cities selected")
     
     def clear_selection(self):
         """Clear all city selections"""
+        logger.debug("Clearing all city selections")
         for var in self.city_vars.values():
             var.set(False)
+        logger.debug("All city selections cleared")
     
     def calculate_routes(self):
         """Start the route calculation process"""
+        logger.info("Starting route calculation process")
         # Get the selected cities
         selected_cities = [city for city, var in self.city_vars.items() if var.get()]
         
@@ -148,6 +171,7 @@ class CitySelectionFrame(ttk.Frame):
         
         # Check if enough cities are selected
         if len(selected_cities) < 3:  # Home + at least 2 more
+            logger.error("Not enough cities selected for route calculation")
             messagebox.showerror("Error", "Please select at least 2 cities to visit!")
             return
         
@@ -156,3 +180,4 @@ class CitySelectionFrame(ttk.Frame):
         
         # Start the calculation in the parent window
         self.master.master.results_display.calculate_and_display_routes()
+        logger.info("Route calculation process started")

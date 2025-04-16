@@ -4,21 +4,42 @@ Results display for the Traveling Salesman Problem game
 import tkinter as tk
 from tkinter import ttk, messagebox
 import time
+import logging
+import traceback
 from core.route_calculator import RouteCalculator
 from database.db_manager import DatabaseManager
 from utils.timer import Timer
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+
+logger = logging.getLogger("ResultsDisplay")
+
+# Try importing matplotlib, but handle it gracefully if it fails
+try:
+    import matplotlib.pyplot as plt
+    from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+    MATPLOTLIB_AVAILABLE = True
+    logger.info("Matplotlib successfully imported")
+except ImportError as e:
+    MATPLOTLIB_AVAILABLE = False
+    logger.warning(f"Matplotlib import failed: {e}. Visualizations will be disabled.")
+    print("Warning: Matplotlib not available. Visualizations will be disabled.")
 
 class ResultsDisplayFrame(ttk.Frame):
     def __init__(self, parent, game_state):
-        super().__init__(parent, padding="10")
-        self.game_state = game_state
-        self.route_calculator = RouteCalculator()
-        self.db_manager = DatabaseManager()
-        self.timer = Timer()
-        
-        self.create_widgets()
+        logger.info("Initializing ResultsDisplayFrame")
+        try:
+            super().__init__(parent, padding="10")
+            self.game_state = game_state
+            self.route_calculator = RouteCalculator()
+            self.db_manager = DatabaseManager()
+            self.timer = Timer()
+            
+            self.create_widgets()
+            logger.info("ResultsDisplayFrame initialized successfully")
+        except Exception as e:
+            logger.error(f"Error in ResultsDisplayFrame initialization: {str(e)}")
+            logger.error(traceback.format_exc())
+            messagebox.showerror("Initialization Error", f"Error setting up results display: {str(e)}")
+            raise
     
     def create_widgets(self):
         """Create the widgets for results display"""
@@ -77,28 +98,48 @@ class ResultsDisplayFrame(ttk.Frame):
         tab_frame.columnconfigure(0, weight=1)
         tab_frame.rowconfigure(0, weight=1)
         
-        # Figure for route visualization
-        figure_frame = ttk.Frame(tab_frame)
-        figure_frame.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=10)
-        
-        fig = plt.Figure(figsize=(6, 4))
-        canvas = FigureCanvasTkAgg(fig, figure_frame)
-        canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
-        
-        # Store references
+        # Store text reference
         if algorithm_name == "Brute Force":
             self.brute_force_text = result_text
-            self.brute_force_fig = fig
-            self.brute_force_canvas = canvas
         elif algorithm_name == "Nearest Neighbor":
             self.nearest_neighbor_text = result_text
-            self.nearest_neighbor_fig = fig
-            self.nearest_neighbor_canvas = canvas
         else:  # Dynamic Programming
             self.dynamic_programming_text = result_text
-            self.dynamic_programming_fig = fig
-            self.dynamic_programming_canvas = canvas
-    
+        
+        # Only create visualization if matplotlib is available
+        if MATPLOTLIB_AVAILABLE:
+            # Figure for route visualization
+            figure_frame = ttk.Frame(tab_frame)
+            figure_frame.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=10)
+            
+            try:
+                fig = plt.Figure(figsize=(6, 4))
+                canvas = FigureCanvasTkAgg(fig, figure_frame)
+                canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+                
+                # Store references
+                if algorithm_name == "Brute Force":
+                    self.brute_force_fig = fig
+                    self.brute_force_canvas = canvas
+                elif algorithm_name == "Nearest Neighbor":
+                    self.nearest_neighbor_fig = fig
+                    self.nearest_neighbor_canvas = canvas
+                else:  # Dynamic Programming
+                    self.dynamic_programming_fig = fig
+                    self.dynamic_programming_canvas = canvas
+            except Exception as e:
+                print(f"Error creating matplotlib figure: {e}")
+                error_label = ttk.Label(figure_frame, text="Visualization unavailable. Install matplotlib for route visualization.")
+                error_label.pack(pady=20)
+        else:
+            # Display message if matplotlib is not available
+            info_label = ttk.Label(
+                tab_frame, 
+                text="Matplotlib is not available. Install it to see route visualizations.",
+                foreground="red"
+            )
+            info_label.grid(row=1, column=0, columnspan=2, pady=20)
+        
     def setup_comparison_tab(self):
         """Set up the comparison tab"""
         comparison_frame = ttk.Frame(self.comparison_frame)
@@ -124,13 +165,28 @@ class ResultsDisplayFrame(ttk.Frame):
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.comparison_tree.configure(yscroll=scrollbar.set)
         
-        # Figure for comparison visualization
-        fig_frame = ttk.Frame(self.comparison_frame)
-        fig_frame.pack(fill=tk.BOTH, expand=True, pady=10)
-        
-        self.comparison_fig = plt.Figure(figsize=(6, 4))
-        self.comparison_canvas = FigureCanvasTkAgg(self.comparison_fig, fig_frame)
-        self.comparison_canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+        # Only create visualization if matplotlib is available
+        if MATPLOTLIB_AVAILABLE:
+            # Figure for comparison visualization
+            fig_frame = ttk.Frame(self.comparison_frame)
+            fig_frame.pack(fill=tk.BOTH, expand=True, pady=10)
+            
+            try:
+                self.comparison_fig = plt.Figure(figsize=(6, 4))
+                self.comparison_canvas = FigureCanvasTkAgg(self.comparison_fig, fig_frame)
+                self.comparison_canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+            except Exception as e:
+                print(f"Error creating comparison figure: {e}")
+                error_label = ttk.Label(fig_frame, text="Chart visualization unavailable. Install matplotlib for visual comparisons.")
+                error_label.pack(pady=20)
+        else:
+            # Display message if matplotlib is not available
+            info_label = ttk.Label(
+                self.comparison_frame, 
+                text="Matplotlib is not available. Install it to see algorithm performance comparisons graphically.",
+                foreground="red"
+            )
+            info_label.pack(pady=20)
     
     def clear_results(self):
         """Clear all result displays"""
@@ -140,17 +196,20 @@ class ResultsDisplayFrame(ttk.Frame):
             self.nearest_neighbor_text.delete(1.0, tk.END)
             self.dynamic_programming_text.delete(1.0, tk.END)
         
-        # Clear figures
-        if hasattr(self, 'brute_force_fig'):
-            self.brute_force_fig.clear()
-            self.nearest_neighbor_fig.clear()
-            self.dynamic_programming_fig.clear()
-            self.comparison_fig.clear()
-            
-            self.brute_force_canvas.draw()
-            self.nearest_neighbor_canvas.draw()
-            self.dynamic_programming_canvas.draw()
-            self.comparison_canvas.draw()
+        # Clear figures only if matplotlib is available
+        if MATPLOTLIB_AVAILABLE and hasattr(self, 'brute_force_fig'):
+            try:
+                self.brute_force_fig.clear()
+                self.nearest_neighbor_fig.clear()
+                self.dynamic_programming_fig.clear()
+                self.comparison_fig.clear()
+                
+                self.brute_force_canvas.draw()
+                self.nearest_neighbor_canvas.draw()
+                self.dynamic_programming_canvas.draw()
+                self.comparison_canvas.draw()
+            except Exception as e:
+                print(f"Error clearing matplotlib figures: {e}")
         
         # Clear comparison tree
         if hasattr(self, 'comparison_tree'):
@@ -237,20 +296,22 @@ class ResultsDisplayFrame(ttk.Frame):
         # Get the appropriate text widget
         if algorithm_name == "Brute Force":
             text_widget = self.brute_force_text
-            fig = self.brute_force_fig
-            canvas = self.brute_force_canvas
+            if MATPLOTLIB_AVAILABLE:
+                fig = self.brute_force_fig
+                canvas = self.brute_force_canvas
         elif algorithm_name == "Nearest Neighbor":
             text_widget = self.nearest_neighbor_text
-            fig = self.nearest_neighbor_fig
-            canvas = self.nearest_neighbor_canvas
+            if MATPLOTLIB_AVAILABLE:
+                fig = self.nearest_neighbor_fig
+                canvas = self.nearest_neighbor_canvas
         else:  # Dynamic Programming
             text_widget = self.dynamic_programming_text
-            fig = self.dynamic_programming_fig
-            canvas = self.dynamic_programming_canvas
+            if MATPLOTLIB_AVAILABLE:
+                fig = self.dynamic_programming_fig
+                canvas = self.dynamic_programming_canvas
         
         # Clear previous content
         text_widget.delete(1.0, tk.END)
-        fig.clear()
         
         # Add result information
         text_widget.insert(tk.END, f"Algorithm: {algorithm_name}\n\n")
@@ -264,9 +325,14 @@ class ResultsDisplayFrame(ttk.Frame):
             text_widget.insert(tk.END, "THIS IS THE SHORTEST ROUTE!\n", "highlight")
             text_widget.tag_configure("highlight", background="yellow", font=("Arial", 10, "bold"))
         
-        # Visualize the route
-        self.visualize_route(fig, result['route'], self.game_state.city_map.get_city_positions())
-        canvas.draw()
+        # Visualize the route only if matplotlib is available
+        if MATPLOTLIB_AVAILABLE:
+            try:
+                fig.clear()
+                self.visualize_route(fig, result['route'], self.game_state.city_map.get_city_positions())
+                canvas.draw()
+            except Exception as e:
+                print(f"Error visualizing route: {e}")
     
     def visualize_route(self, fig, route, city_positions):
         """Visualize the route on the figure"""
@@ -321,38 +387,42 @@ class ResultsDisplayFrame(ttk.Frame):
         # Configure tag for highlighting
         self.comparison_tree.tag_configure("shortest", background="light green")
         
-        # Create bar chart comparison
-        self.comparison_fig.clear()
-        ax = self.comparison_fig.add_subplot(111)
-        
-        algorithms = list(results.keys())
-        lengths = [results[algo]["length"] for algo in algorithms]
-        times = [results[algo]["time"] for algo in algorithms]
-        
-        # Create grouped bar chart
-        x = range(len(algorithms))
-        width = 0.35
-        
-        # Create two separate y-axes for different scales
-        ax.bar(x, lengths, width, label='Route Length (km)')
-        ax.set_ylabel('Route Length (km)')
-        ax.set_xlabel('Algorithm')
-        ax.set_xticks(x)
-        ax.set_xticklabels(algorithms)
-        
-        # Twin axis for time
-        ax2 = ax.twinx()
-        ax2.bar([i + width for i in x], times, width, color='orange', label='Time (ms)')
-        ax2.set_ylabel('Time (ms)')
-        
-        # Add legend
-        lines1, labels1 = ax.get_legend_handles_labels()
-        lines2, labels2 = ax2.get_legend_handles_labels()
-        ax.legend(lines1 + lines2, labels1 + labels2, loc='upper left')
-        
-        self.comparison_fig.tight_layout()
-        self.comparison_canvas.draw()
-    
+        # Create bar chart comparison only if matplotlib is available
+        if MATPLOTLIB_AVAILABLE and hasattr(self, 'comparison_fig') and hasattr(self, 'comparison_canvas'):
+            try:
+                self.comparison_fig.clear()
+                ax = self.comparison_fig.add_subplot(111)
+                
+                algorithms = list(results.keys())
+                lengths = [results[algo]["length"] for algo in algorithms]
+                times = [results[algo]["time"] for algo in algorithms]
+                
+                # Create grouped bar chart
+                x = range(len(algorithms))
+                width = 0.35
+                
+                # Create two separate y-axes for different scales
+                ax.bar(x, lengths, width, label='Route Length (km)')
+                ax.set_ylabel('Route Length (km)')
+                ax.set_xlabel('Algorithm')
+                ax.set_xticks(x)
+                ax.set_xticklabels(algorithms)
+                
+                # Twin axis for time
+                ax2 = ax.twinx()
+                ax2.bar([i + width for i in x], times, width, color='orange', label='Time (ms)')
+                ax2.set_ylabel('Time (ms)')
+                
+                # Add legend
+                lines1, labels1 = ax.get_legend_handles_labels()
+                lines2, labels2 = ax2.get_legend_handles_labels()
+                ax.legend(lines1 + lines2, labels1 + labels2, loc='upper left')
+                
+                self.comparison_fig.tight_layout()
+                self.comparison_canvas.draw()
+            except Exception as e:
+                print(f"Error creating comparison chart: {e}")
+
     def check_answer(self):
         """Check the user's answer and record in database if correct"""
         if not self.user_choice.get():

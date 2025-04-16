@@ -4,36 +4,88 @@ Main game window for the Traveling Salesman Problem game
 import tkinter as tk
 from tkinter import ttk, messagebox
 import sys
+import logging
+import os
+import traceback
 from gui.city_selection import CitySelectionFrame
 from gui.results_display import ResultsDisplayFrame
 from core.game_state import GameState
 from core.city_map import CityMap
 from database.db_manager import DatabaseManager
 
+# Configure logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(os.path.join(os.path.dirname(os.path.dirname(__file__)), "tsp_game.log")),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger("GameWindow")
+
 class GameWindow:
     def __init__(self):
-        self.root = tk.Tk()
-        self.root.title("Traveling Salesman Problem Game")
-        self.root.geometry("1000x700")
-        self.root.resizable(True, True)
-        
-        self.db_manager = DatabaseManager()
-        self.game_state = GameState()
-        self.city_map = CityMap()
-        
-        self.create_menu()
-        self.create_frames()
-        self.setup_layout()
-        
-        # Player info frame
-        self.player_frame = ttk.Frame(self.root, padding="10")
-        self.player_frame.grid(row=0, column=0, sticky=(tk.W, tk.E))
-        
-        ttk.Label(self.player_frame, text="Player Name:").grid(row=0, column=0, sticky=tk.W)
-        self.player_name = tk.StringVar()
-        ttk.Entry(self.player_frame, textvariable=self.player_name).grid(row=0, column=1, sticky=(tk.W, tk.E))
-        
-        ttk.Button(self.player_frame, text="Start New Game", command=self.start_new_game).grid(row=0, column=2, padx=5)
+        logger.info("Initializing GameWindow")
+        try:
+            self.root = tk.Tk()
+            self.root.title("Traveling Salesman Problem Game")
+            self.root.geometry("1000x700")
+            self.root.resizable(True, True)
+            
+            logger.debug("Creating database manager")
+            self.db_manager = DatabaseManager()
+            
+            logger.debug("Creating game state")
+            self.game_state = GameState()
+            
+            logger.debug("Creating city map")
+            self.city_map = CityMap()
+            
+            # Initialize the city map with cities and distances
+            logger.debug("Generating cities and distances")
+            self.city_map.generate_cities_and_distances()
+            
+            logger.debug("Setting city map in game state")
+            self.game_state.set_city_map(self.city_map)
+            
+            logger.debug("Selecting home city")
+            self.game_state.home_city = self.city_map.select_random_home_city()
+            logger.info(f"Home city selected: {self.game_state.home_city}")
+            
+            logger.debug("Creating menu")
+            self.create_menu()
+            
+            logger.debug("Creating frames")
+            self.create_frames()
+            
+            logger.debug("Setting up layout")
+            self.setup_layout()
+            
+            # Player info frame
+            logger.debug("Creating player info frame")
+            self.player_frame = ttk.Frame(self.root, padding="10")
+            self.player_frame.grid(row=0, column=0, sticky=(tk.W, tk.E))
+            
+            ttk.Label(self.player_frame, text="Player Name:").grid(row=0, column=0, sticky=tk.W)
+            self.player_name = tk.StringVar()
+            self.player_name.set("Player")  # Set a default player name
+            ttk.Entry(self.player_frame, textvariable=self.player_name).grid(row=0, column=1, sticky=(tk.W, tk.E))
+            
+            ttk.Button(self.player_frame, text="Start New Game", command=self.start_new_game).grid(row=0, column=2, padx=5)
+            
+            # Update the game state with the default player name
+            self.game_state.player_name = self.player_name.get()
+            
+            # Update the UI to show initial game state after a brief delay
+            logger.debug("Scheduling initialize_game_display")
+            self.root.after(100, self.initialize_game_display)
+            logger.info("GameWindow initialization complete")
+        except Exception as e:
+            logger.error(f"Error in GameWindow initialization: {str(e)}")
+            logger.error(traceback.format_exc())
+            messagebox.showerror("Initialization Error", f"An error occurred during initialization: {str(e)}")
+            raise
 
     def create_menu(self):
         """Create the main menu"""
@@ -144,6 +196,26 @@ class GameWindow:
         what is the shortest possible route that visits each city exactly once and returns to the origin city?"
         """
         messagebox.showinfo("About", about_text)
+        
+    def initialize_game_display(self):
+        """Initialize the game display with cities and the distance matrix"""
+        # Update the city selection display
+        self.city_selection.update_cities_display()
+        
+        # Clear any previous results in the results display
+        self.results_display.clear_results()
+        
+        # Notify user of the home city without using a modal dialog
+        status_label = ttk.Label(
+            self.player_frame, 
+            text=f"Home city: {self.game_state.home_city}", 
+            foreground="blue", 
+            font=("Arial", 10, "bold")
+        )
+        status_label.grid(row=0, column=3, padx=10, sticky=tk.W)
+        
+        # Update UI elements to ensure proper rendering
+        self.root.update_idletasks()
 
     def run(self):
         """Run the application main loop"""
