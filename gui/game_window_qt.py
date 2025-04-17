@@ -162,7 +162,7 @@ class GameWindowQt(QMainWindow):
         QMessageBox.information(self, "New Game", f"A new game has started!\nYour home city is {self.game_state.home_city}")
 
     def view_high_scores(self):
-        """Show high scores from the database"""
+        """Show high scores from the database with enhanced statistics and modern design"""
         logger.debug("Viewing high scores")
         high_scores = self.db_manager.get_high_scores()
         
@@ -171,30 +171,166 @@ class GameWindowQt(QMainWindow):
             return
             
         dialog = QDialog(self)
-        dialog.setWindowTitle("High Scores")
-        dialog.resize(600, 400)
+        dialog.setWindowTitle("High Scores & Statistics")
+        dialog.resize(800, 600)
         layout = QVBoxLayout(dialog)
         
         scores_text = QTextBrowser(dialog)
         scores_text.setOpenExternalLinks(False)
         
-        # Format the high scores as HTML
-        html_content = "<h2>High Scores</h2><table border='1' cellspacing='0' cellpadding='5'>"
+        # Calculate statistics from high scores
+        total_games = len(high_scores)
+        algorithms_used = {}
+        shortest_route = float('inf')
+        longest_route = 0
+        best_player = {}
+        total_route_length = 0
+        cities_frequency = {}
+        
+        for score in high_scores:
+            player, home_city, cities_visited, route_length, algorithm, time = score
+            
+            # Convert to appropriate types
+            cities_visited = int(cities_visited)
+            route_length = float(route_length)
+            time = float(time)
+            
+            # Algorithm statistics
+            if algorithm not in algorithms_used:
+                algorithms_used[algorithm] = 0
+            algorithms_used[algorithm] += 1
+            
+            # Route length statistics
+            if route_length < shortest_route:
+                shortest_route = route_length
+                best_player = {'name': player, 'route': route_length, 'cities': cities_visited, 'algorithm': algorithm}
+            
+            if route_length > longest_route:
+                longest_route = route_length
+            
+            total_route_length += route_length
+            
+            # Track city popularity
+            if home_city not in cities_frequency:
+                cities_frequency[home_city] = 0
+            cities_frequency[home_city] += 1
+        
+        # Find most popular algorithm
+        most_popular_algorithm = max(algorithms_used.items(), key=lambda x: x[1])[0]
+        average_route_length = total_route_length / total_games
+        
+        # CSS for modern styling
+        css = """
+        <style>
+            body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 10px; background-color: #f8f9fa; color: #333; }
+            h2 { color: #2c3e50; text-align: center; margin-bottom: 5px; }
+            h3 { color: #3498db; margin-top: 20px; margin-bottom: 10px; border-bottom: 2px solid #3498db; padding-bottom: 5px; }
+            .stats-container { display: flex; flex-wrap: wrap; justify-content: space-between; margin-bottom: 20px; }
+            .stat-box { background-color: #fff; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); padding: 12px; width: 48%; margin-bottom: 15px; }
+            .stat-title { font-weight: bold; color: #2c3e50; margin-bottom: 5px; }
+            .stat-value { font-size: 18px; color: #2980b9; }
+            .stat-extra { font-size: 12px; color: #7f8c8d; }
+            table { width: 100%; border-collapse: collapse; margin-top: 15px; border-radius: 6px; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.1); }
+            th { background-color: #3498db; color: white; text-align: left; padding: 12px; }
+            td { background-color: white; padding: 10px; border-bottom: 1px solid #ddd; }
+            tr:hover td { background-color: #f1f9ff; }
+            .highlight-row td { background-color: #e8f8f5; font-weight: bold; }
+        </style>
+        """
+        
+        # Start building content with enhanced statistics
+        html_content = css + "<h2>TSP Game Statistics</h2>"
+        
+        # Statistics boxes
+        html_content += "<div class='stats-container'>"
+        
+        # Best player box
+        html_content += "<div class='stat-box'>"
+        html_content += "<div class='stat-title'>Best Player</div>"
+        html_content += f"<div class='stat-value'>{best_player['name']}</div>"
+        html_content += f"<div class='stat-extra'>Route: {best_player['route']:.2f} km with {best_player['cities']} cities using {best_player['algorithm']}</div>"
+        html_content += "</div>"
+        
+        # Total games box
+        html_content += "<div class='stat-box'>"
+        html_content += "<div class='stat-title'>Total Games Played</div>"
+        html_content += f"<div class='stat-value'>{total_games}</div>"
+        html_content += "</div>"
+        
+        # Best algorithm box
+        html_content += "<div class='stat-box'>"
+        html_content += "<div class='stat-title'>Most Popular Algorithm</div>"
+        html_content += f"<div class='stat-value'>{most_popular_algorithm}</div>"
+        html_content += f"<div class='stat-extra'>Used {algorithms_used[most_popular_algorithm]} times</div>"
+        html_content += "</div>"
+        
+        # Route statistics box
+        html_content += "<div class='stat-box'>"
+        html_content += "<div class='stat-title'>Route Statistics</div>"
+        html_content += f"<div class='stat-value'>{average_route_length:.2f} km</div>"
+        html_content += f"<div class='stat-extra'>Average route length (Shortest: {shortest_route:.2f} km, Longest: {longest_route:.2f} km)</div>"
+        html_content += "</div>"
+        html_content += "</div>"  # End stats-container
+                
+        # High scores table with enhanced styling
+        html_content += "<h3>High Scores</h3>"
+        html_content += "<table>"
         html_content += "<tr><th>Player</th><th>Home City</th><th>Cities Visited</th><th>Route Length</th><th>Algorithm</th><th>Time (ms)</th></tr>"
         
         for score in high_scores:
-            html_content += "<tr>"
+            player, home_city, cities_visited, route_length, algorithm, time = score
+            
+            # Highlight the row if this is the best score
+            if float(route_length) == shortest_route:
+                html_content += "<tr class='highlight-row'>"
+            else:
+                html_content += "<tr>"
+                
             for item in score:
-                html_content += f"<td>{item}</td>"
+                # Format numbers to 2 decimal places if they're route length or time
+                if isinstance(item, (int, float)) or (isinstance(item, str) and item.replace('.', '', 1).isdigit()):
+                    try:
+                        value = float(item)
+                        if value == int(value):
+                            html_content += f"<td>{int(value)}</td>"
+                        else:
+                            html_content += f"<td>{value:.2f}</td>"
+                    except ValueError:
+                        html_content += f"<td>{item}</td>"
+                else:
+                    html_content += f"<td>{item}</td>"
             html_content += "</tr>"
             
         html_content += "</table>"
-        scores_text.setHtml(html_content)
         
+        # Algorithm usage chart
+        html_content += "<h3>Algorithm Usage</h3>"
+        html_content += "<div class='stat-box' style='width: 100%'>"
+        max_count = max(algorithms_used.values())
+        for algo, count in algorithms_used.items():
+            percentage = (count / total_games) * 100
+            bar_width = (count / max_count) * 100
+            html_content += f"<div style='margin-bottom: 10px;'>"
+            html_content += f"<div style='display: flex; justify-content: space-between;'>"
+            html_content += f"<span>{algo}</span><span>{percentage:.1f}% ({count} games)</span>"
+            html_content += f"</div>"
+            html_content += f"<div style='background-color: #eee; border-radius: 4px; height: 20px;'>"
+            html_content += f"<div style='background-color: #3498db; width: {bar_width}%; height: 100%; border-radius: 4px;'></div>"
+            html_content += f"</div>"
+            html_content += f"</div>"
+        html_content += "</div>"
+        
+        scores_text.setHtml(html_content)
         layout.addWidget(scores_text)
         
         close_button = QPushButton("Close", dialog)
         close_button.clicked.connect(dialog.close)
+        close_button.setStyleSheet("background-color: #3498db; color: white; padding: 8px 16px; border-radius: 4px;")
+        layout.addWidget(scores_text)
+        
+        close_button = QPushButton("Close", dialog)
+        close_button.clicked.connect(dialog.close)
+        close_button.setStyleSheet("background-color: #3498db; color: white; padding: 8px 16px; border-radius: 4px;")
         layout.addWidget(close_button)
         
         dialog.exec_()

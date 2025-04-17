@@ -6,7 +6,7 @@ import traceback
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTabWidget, QLabel,
     QTextEdit, QComboBox, QPushButton, QMessageBox, QTableWidget,
-    QTableWidgetItem, QSizePolicy, QFrame
+    QTableWidgetItem, QSizePolicy, QFrame, QDialog
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QColor
@@ -47,6 +47,7 @@ class ResultsDisplayFrameQt(QWidget):
             self.db_manager = db_manager
             self.route_calculator = RouteCalculator()
             self.timer = Timer()
+            self.user_prediction = None  # Store user's predicted shortest algorithm
             
             self.create_widgets()
             logger.info("ResultsDisplayFrameQt initialized successfully")
@@ -205,6 +206,9 @@ class ResultsDisplayFrameQt(QWidget):
     
     def clear_results(self):
         """Clear all result displays"""
+        # Reset user prediction
+        self.user_prediction = None
+        
         # Clear text areas
         if hasattr(self, 'brute_force_text'):
             self.brute_force_text.clear()
@@ -240,7 +244,11 @@ class ResultsDisplayFrameQt(QWidget):
         if not self.game_state.selected_cities:
             QMessageBox.critical(self, "Error", "No cities selected!")
             return
-        
+            
+        # First, get the user's prediction for which algorithm will be fastest
+        if not self.get_user_prediction():
+            return  # User canceled or didn't make a prediction
+            
         # Get necessary data
         cities = self.game_state.selected_cities
         distances = self.game_state.city_map.get_distances()
@@ -306,8 +314,23 @@ class ResultsDisplayFrameQt(QWidget):
         self.display_algorithm_results("Dynamic Programming", results["Dynamic Programming"])
         self.display_comparison(results)
         
-        # Switch to the comparison tab to show results at a glance
-        self.tab_widget.setCurrentIndex(3)  # Index 3 is the comparison tab
+        # Show result of user prediction
+        if self.user_prediction == self.shortest_algorithm:
+            QMessageBox.information(self, "Correct Prediction!", 
+                f"Congratulations! You correctly predicted that {self.user_prediction} would find the shortest route.")
+        else:
+            QMessageBox.information(self, "Prediction Result", 
+                f"You predicted {self.user_prediction}, but {self.shortest_algorithm} found the shortest route.")
+        
+        # Switch to the tab with the user's prediction first, then to comparison
+        if self.user_prediction == "Brute Force":
+            self.tab_widget.setCurrentIndex(0)
+        elif self.user_prediction == "Nearest Neighbor":
+            self.tab_widget.setCurrentIndex(1)
+        elif self.user_prediction == "Dynamic Programming":
+            self.tab_widget.setCurrentIndex(2)
+        else:
+            self.tab_widget.setCurrentIndex(3)  # Index 3 is the comparison tab
     
     def display_algorithm_results(self, algorithm_name, result):
         """Display results for a specific algorithm"""
@@ -335,9 +358,13 @@ class ResultsDisplayFrameQt(QWidget):
         html_content += f"<p><b>Calculation Time:</b> {result['time']:.4f} ms</p>"
         html_content += f"<p><b>Time Complexity:</b> {result['complexity']}</p>"
         
+        # Highlight user's prediction
+        if self.user_prediction and algorithm_name == self.user_prediction:
+            html_content += "<p style='color:blue; font-weight:bold; background-color:#e6f2ff; padding:5px; border-left:4px solid blue;'>YOUR PREDICTION</p>"
+        
         # Highlight if this is the shortest route
         if algorithm_name == self.shortest_algorithm:
-            html_content += "<p style='color:green; font-weight:bold; background-color:yellow; padding:5px;'>THIS IS THE SHORTEST ROUTE!</p>"
+            html_content += "<p style='color:green; font-weight:bold; background-color:#f0ffe0; padding:5px; border-left:4px solid green;'>THIS IS THE SHORTEST ROUTE!</p>"
         
         text_widget.setHtml(html_content)
         
@@ -481,3 +508,66 @@ class ResultsDisplayFrameQt(QWidget):
         )
         
         QMessageBox.information(self, "Saved", "Your result has been saved to the high scores!")
+    
+    def get_user_prediction(self):
+        """Prompt user to predict which algorithm will find the shortest route"""
+        if not self.game_state.selected_cities:
+            QMessageBox.critical(self, "Error", "No cities selected!")
+            return False
+            
+        prediction_dialog = QDialog(self)
+        prediction_dialog.setWindowTitle("Make Your Prediction")
+        prediction_dialog.setMinimumWidth(400)
+        
+        layout = QVBoxLayout(prediction_dialog)
+        
+        # Information label
+        info_label = QLabel(
+            f"<p>You have selected {len(self.game_state.selected_cities)} cities to visit.</p>"
+            f"<p>Before calculating the routes, predict which algorithm will find the shortest path:</p>"
+        )
+        info_label.setWordWrap(True)
+        layout.addWidget(info_label)
+        
+        # Algorithm description
+        algo_info = QLabel(
+            "<p><b>Brute Force</b>: Tries all possible routes (O(n!))</p>"
+            "<p><b>Nearest Neighbor</b>: Always visits closest unvisited city (O(n²))</p>"
+            "<p><b>Dynamic Programming</b>: Uses optimal subproblems (O(n²2ⁿ))</p>"
+        )
+        algo_info.setStyleSheet("background-color: #f0f0f0; padding: 10px; border-radius: 5px;")
+        algo_info.setWordWrap(True)
+        layout.addWidget(algo_info)
+        
+        # Prediction combo box
+        prediction_combo = QComboBox()
+        prediction_combo.addItems(["Brute Force", "Nearest Neighbor", "Dynamic Programming"])
+        prediction_combo.setCurrentIndex(-1)  # No selection initially
+        layout.addWidget(prediction_combo)
+        
+        # Buttons
+        button_layout = QHBoxLayout()
+        cancel_button = QPushButton("Cancel")
+        submit_button = QPushButton("Submit Prediction")
+        submit_button.setDefault(True)
+        submit_button.setEnabled(False)  # Disabled until a selection is made
+        
+        # Enable submit button when a selection is made
+        prediction_combo.currentIndexChanged.connect(
+            lambda idx: submit_button.setEnabled(idx != -1)
+        )
+        
+        button_layout.addWidget(cancel_button)
+        button_layout.addWidget(submit_button)
+        layout.addLayout(button_layout)
+        
+        # Connect button signals
+        cancel_button.clicked.connect(prediction_dialog.reject)
+        submit_button.clicked.connect(prediction_dialog.accept)
+        
+        # Show dialog and get result
+        if prediction_dialog.exec_() == QDialog.Accepted and prediction_combo.currentText():
+            self.user_prediction = prediction_combo.currentText()
+            return True
+        else:
+            return False
