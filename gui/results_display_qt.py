@@ -409,28 +409,55 @@ class ResultsDisplayFrameQt(QWidget):
         axes.grid(True)
     
     def display_comparison(self, results):
-        """Display comparison of all algorithms"""
+        """Display comparison of all algorithms with enhanced visualization"""
         # Clear previous data in table
         self.comparison_table.setRowCount(0)
         
-        # Add data to table
+        # Add data to table with better styling
         for i, (algo, result) in enumerate(results.items()):
             row_position = self.comparison_table.rowCount()
             self.comparison_table.insertRow(row_position)
             
             # Add items to the row
-            self.comparison_table.setItem(row_position, 0, QTableWidgetItem(algo))
-            self.comparison_table.setItem(row_position, 1, QTableWidgetItem(f"{result['length']:.2f} km"))
-            self.comparison_table.setItem(row_position, 2, QTableWidgetItem(f"{result['time']:.4f} ms"))
-            self.comparison_table.setItem(row_position, 3, QTableWidgetItem(result['complexity']))
+            algo_item = QTableWidgetItem(algo)
+            length_item = QTableWidgetItem(f"{result['length']:.2f} km")
+            time_item = QTableWidgetItem(f"{result['time']:.4f} ms")
+            complexity_item = QTableWidgetItem(result['complexity'])
+            
+            # Apply styling based on algorithm
+            if algo == "Brute Force":
+                algo_item.setForeground(QColor("#e74c3c"))  # Red
+            elif algo == "Nearest Neighbor":
+                algo_item.setForeground(QColor("#3498db"))  # Blue
+            else:  # Dynamic Programming
+                algo_item.setForeground(QColor("#2ecc71"))  # Green
+                
+            self.comparison_table.setItem(row_position, 0, algo_item)
+            self.comparison_table.setItem(row_position, 1, length_item)
+            self.comparison_table.setItem(row_position, 2, time_item)
+            self.comparison_table.setItem(row_position, 3, complexity_item)
+            
+            # Highlight user's prediction with soft blue background
+            if algo == self.user_prediction:
+                for col in range(4):
+                    item = self.comparison_table.item(row_position, col)
+                    item.setBackground(QColor(230, 242, 255))  # Light blue
+                    if col == 0:  # Add "Your Prediction" to the algorithm name
+                        item.setText(f"{algo} (Your Prediction)")
             
             # Highlight shortest route
             if algo == self.shortest_algorithm:
                 for col in range(4):
                     item = self.comparison_table.item(row_position, col)
-                    item.setBackground(QColor(144, 238, 144))  # Light green
+                    item.setBackground(QColor(232, 245, 233))  # Light green
+                    if col == 0 and algo != self.user_prediction:  # Add "Shortest Route" to the algorithm name
+                        item.setText(f"{algo} (Shortest Route)")
+                    elif col == 0 and algo == self.user_prediction:  # Both prediction and shortest
+                        item.setText(f"{algo} (Your Prediction ✓ Shortest Route)")
+                        # Special highlight for correct prediction
+                        item.setBackground(QColor(220, 237, 200))  # Lighter green
         
-        # Create bar chart comparison only if matplotlib is available
+        # Create enhanced bar chart comparison only if matplotlib is available
         if MATPLOTLIB_AVAILABLE and hasattr(self, 'comparison_canvas'):
             try:
                 self.comparison_canvas.axes.clear()
@@ -439,32 +466,104 @@ class ResultsDisplayFrameQt(QWidget):
                 lengths = [results[algo]["length"] for algo in algorithms]
                 times = [results[algo]["time"] for algo in algorithms]
                 
+                # Set colors based on algorithm type and prediction status
+                bar_colors = []
+                time_colors = []
+                
+                for algo in algorithms:
+                    if algo == self.shortest_algorithm and algo == self.user_prediction:
+                        bar_colors.append('#27ae60')  # Dark green for correct prediction
+                    elif algo == self.shortest_algorithm:
+                        bar_colors.append('#2ecc71')  # Green for shortest route
+                    elif algo == self.user_prediction:
+                        bar_colors.append('#3498db')  # Blue for prediction
+                    else:
+                        bar_colors.append('#95a5a6')  # Gray for others
+                    
+                    # Time bar colors use lighter versions
+                    if algo == self.user_prediction:
+                        time_colors.append('#5dade2')  # Lighter blue
+                    else:
+                        time_colors.append('#f39c12')  # Orange for times
+                
                 # Create two separate y-axes for different scales
                 ax = self.comparison_canvas.axes
                 width = 0.35
                 x = range(len(algorithms))
                 
-                # Plot route lengths
-                bars1 = ax.bar(x, lengths, width, label='Route Length (km)')
-                ax.set_ylabel('Route Length (km)')
-                ax.set_xlabel('Algorithm')
+                # Plot route lengths with custom colors
+                bars1 = ax.bar(x, lengths, width, label='Route Length (km)', color=bar_colors)
+                ax.set_ylabel('Route Length (km)', fontweight='bold')
+                ax.set_xlabel('Algorithm', fontweight='bold')
                 ax.set_xticks(x)
                 ax.set_xticklabels(algorithms)
                 
+                # Add data labels on bars
+                for bar in bars1:
+                    height = bar.get_height()
+                    ax.annotate(f'{height:.2f}',
+                                xy=(bar.get_x() + bar.get_width() / 2, height),
+                                xytext=(0, 3),  # 3 points vertical offset
+                                textcoords="offset points",
+                                ha='center', va='bottom',
+                                fontsize=9)
+                
                 # Twin axis for time
                 ax2 = ax.twinx()
-                bars2 = ax2.bar([i + width for i in x], times, width, color='orange', label='Time (ms)')
-                ax2.set_ylabel('Time (ms)')
+                bars2 = ax2.bar([i + width for i in x], times, width, color=time_colors, label='Time (ms)')
+                ax2.set_ylabel('Time (ms)', fontweight='bold')
                 
-                # Add legend
+                # Add data labels on bars
+                for bar in bars2:
+                    height = bar.get_height()
+                    ax2.annotate(f'{height:.2f}',
+                                xy=(bar.get_x() + bar.get_width() / 2, height),
+                                xytext=(0, 3),  # 3 points vertical offset
+                                textcoords="offset points",
+                                ha='center', va='bottom',
+                                fontsize=9,
+                                color='#333')
+                
+                # Add enhanced legend
                 lines1, labels1 = ax.get_legend_handles_labels()
                 lines2, labels2 = ax2.get_legend_handles_labels()
-                ax.legend(lines1 + lines2, labels1 + labels2, loc='upper left')
+                
+                # Add custom legend entries for prediction and shortest
+                from matplotlib.patches import Patch
+                legend_elements = [
+                    lines1[0], lines2[0]  # Route length and time
+                ]
+                legend_labels = [labels1[0], labels2[0]]
+                
+                # Add only if we have a prediction
+                if self.user_prediction:
+                    legend_elements.append(Patch(facecolor='#3498db', label='Your Prediction'))
+                    legend_labels.append('Your Prediction')
+                    
+                # Add shortest route to legend
+                if self.shortest_algorithm:
+                    legend_elements.append(Patch(facecolor='#2ecc71', label='Shortest Route'))
+                    legend_labels.append('Shortest Route')
+                
+                # If prediction matches shortest, add special entry
+                if self.user_prediction and self.user_prediction == self.shortest_algorithm:
+                    legend_elements.append(Patch(facecolor='#27ae60', label='Correct Prediction'))
+                    legend_labels.append('Correct Prediction')
+                
+                ax.legend(legend_elements, legend_labels, loc='upper left', frameon=True, 
+                          fancybox=True, shadow=True, fontsize='small')
+                
+                # Add a title
+                ax.set_title('Algorithm Performance Comparison', fontweight='bold', fontsize=14)
+                
+                # Add grid for better readability
+                ax.grid(True, linestyle='--', alpha=0.7)
                 
                 self.comparison_canvas.fig.tight_layout()
                 self.comparison_canvas.draw()
             except Exception as e:
-                logger.error(f"Error creating comparison chart: {e}")
+                logger.error(f"Error creating enhanced comparison chart: {e}")
+                logger.error(traceback.format_exc())
     
     def check_answer(self):
         """Check the user's answer and record in database if correct"""

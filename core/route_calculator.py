@@ -136,6 +136,7 @@ class RouteCalculator:
         """
         # Create a mapping of cities to indices
         city_indices = {city: i for i, city in enumerate(cities)}
+        index_to_city = {i: city for i, city in enumerate(cities)}
         home_idx = city_indices[home_city]
         
         n = len(cities)
@@ -157,93 +158,61 @@ class RouteCalculator:
                     else:
                         raise ValueError(f"No distance found between {city1} and {city2}")
         
-        # Initialize DP table
-        # dp[mask][i] = minimum distance to visit all cities in mask and end at city i
-        dp = {}
+        # For very small number of cities, use brute force approach
+        if n <= 3:
+            return self.brute_force(cities, distances, home_city)
+            
+        # Use a simpler DP approach for better reliability
+        # We'll use a recursive approach with memoization
+        memo = {}
         
-        # Initialize path reconstruction table
-        path = {}
-        
-        # Base case - starting at home city
-        for i in range(n):
-            if i != home_idx:
-                dp[(1 << home_idx) | (1 << i), i] = dist_matrix[home_idx][i]
-                path[(1 << home_idx) | (1 << i), i] = home_idx
-        
-        # Iterate over all subsets of cities
-        for subset_size in range(3, n + 1):
-            for subset in itertools.combinations(range(n), subset_size):
-                # Skip if home city is not in subset
-                if home_idx not in subset:
+        # Function to compute the shortest path from current to home,
+        # having visited all cities in visited_mask
+        def tsp_dp(current, visited_mask):
+            # If all cities are visited, return to home
+            if visited_mask == (1 << n) - 1:
+                return dist_matrix[current][home_idx], [home_idx]
+            
+            # If we've computed this state before, return the memoized result
+            if (current, visited_mask) in memo:
+                return memo[(current, visited_mask)]
+            
+            min_dist = float('inf')
+            best_path = None
+            
+            # Try visiting each unvisited city
+            for next_city in range(n):
+                # Skip if already visited or if it's the same as current
+                if visited_mask & (1 << next_city) or next_city == current:
                     continue
                 
-                # Create mask for this subset
-                mask = 0
-                for i in subset:
-                    mask |= 1 << i
+                # Calculate distance through this next city
+                next_visited_mask = visited_mask | (1 << next_city)
+                distance_to_next = dist_matrix[current][next_city]
                 
-                # Try all cities as the ending city
-                for end in subset:
-                    if end == home_idx:
-                        continue
-                    
-                    # Previous mask without the end city
-                    prev_mask = mask & ~(1 << end)
-                    
-                    # Find the best path to this city
-                    min_dist = float('inf')
-                    best_prev = -1
-                    
-                    for prev in subset:
-                        if prev == end or prev == home_idx:
-                            continue
-                        
-                        if (prev_mask, prev) in dp:
-                            current_dist = dp[(prev_mask, prev)] + dist_matrix[prev][end]
-                            if current_dist < min_dist:
-                                min_dist = current_dist
-                                best_prev = prev
-                    
-                    if best_prev != -1:
-                        dp[(mask, end)] = min_dist
-                        path[(mask, end)] = best_prev
+                # Recursive call to find the best path after visiting next_city
+                remaining_dist, remaining_path = tsp_dp(next_city, next_visited_mask)
+                total_dist = distance_to_next + remaining_dist
+                
+                if total_dist < min_dist:
+                    min_dist = total_dist
+                    best_path = [next_city] + remaining_path
+            
+            # Memoize and return the result
+            memo[(current, visited_mask)] = (min_dist, best_path)
+            return min_dist, best_path
         
-        # Find the best path back to home
-        all_cities_mask = (1 << n) - 1
-        min_dist = float('inf')
-        best_last = -1
+        # Start the algorithm from the home city
+        # Only the home city is visited initially
+        initial_mask = 1 << home_idx
+        total_distance, path_indices = tsp_dp(home_idx, initial_mask)
         
-        for last in range(n):
-            if last != home_idx:
-                if (all_cities_mask, last) in dp:
-                    current_dist = dp[(all_cities_mask, last)] + dist_matrix[last][home_idx]
-                    if current_dist < min_dist:
-                        min_dist = current_dist
-                        best_last = last
-        
-        # Reconstruct the path
-        if best_last == -1:
-            # This should not happen if there's a valid solution
-            return [home_city], 0
-        
-        # Start with the last city before returning home
-        mask = all_cities_mask
-        current = best_last
-        route_indices = [home_idx]  # End at home
-        route_indices.append(current)
-        
-        # Reconstruct the path backwards
-        while current != home_idx:
-            prev = path[(mask, current)]
-            route_indices.append(prev)
-            mask &= ~(1 << current)
-            current = prev
-        
-        # Reverse and convert back to city names
-        route_indices.reverse()
-        route = [cities[i] for i in route_indices]
+        # Convert indices back to city names
+        path = [home_city]  # Start at home city
+        for idx in path_indices:
+            path.append(index_to_city[idx])
         
         # Validate the route before returning
-        validate_route(route, home_city)
+        validate_route(path, home_city)
         
-        return route, min_dist
+        return path, total_distance
