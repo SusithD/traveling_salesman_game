@@ -6,7 +6,7 @@ import traceback
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTabWidget, QLabel,
     QTextEdit, QComboBox, QPushButton, QMessageBox, QTableWidget,
-    QTableWidgetItem, QSizePolicy, QFrame, QDialog
+    QTableWidgetItem, QSizePolicy, QFrame, QDialog, QScrollArea
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QColor
@@ -30,13 +30,15 @@ except ImportError as e:
 
 class MatplotlibCanvas(FigureCanvasQTAgg):
     """Canvas for matplotlib figures"""
-    def __init__(self, width=5, height=4, dpi=100):
+    def __init__(self, width=8, height=6, dpi=100):  # Increased default height
         if not MATPLOTLIB_AVAILABLE:
             raise ImportError("Matplotlib is not available")
         
         self.fig = Figure(figsize=(width, height), dpi=dpi)
         self.axes = self.fig.add_subplot(111)
         super().__init__(self.fig)
+        # Set minimum height to avoid flattened graphs
+        self.setMinimumHeight(300)  # Ensure minimum height for the canvas
 
 class ResultsDisplayFrameQt(QWidget):
     def __init__(self, game_state, db_manager):
@@ -48,6 +50,74 @@ class ResultsDisplayFrameQt(QWidget):
             self.route_calculator = RouteCalculator()
             self.timer = Timer()
             self.user_prediction = None  # Store user's predicted shortest algorithm
+            
+            # Apply black background and white text styling
+            self.setStyleSheet("""
+                QWidget {
+                    background-color: black;
+                    color: white;
+                }
+                QLabel {
+                    color: white;
+                }
+                QTabWidget::pane {
+                    border: 1px solid #444444;
+                    background-color: black;
+                }
+                QTabBar::tab {
+                    background-color: #222222;
+                    color: white;
+                    padding: 8px 15px;
+                    margin-right: 2px;
+                    border-top-left-radius: 4px;
+                    border-top-right-radius: 4px;
+                }
+                QTabBar::tab:selected {
+                    background-color: black;
+                    border-bottom: 2px solid white;
+                }
+                QComboBox {
+                    background-color: #222222;
+                    color: white;
+                    border: 1px solid #444444;
+                    border-radius: 4px;
+                    padding: 5px;
+                    min-width: 6em;
+                }
+                QComboBox::drop-down {
+                    subcontrol-origin: padding;
+                    subcontrol-position: top right;
+                    width: 20px;
+                    border-left: 1px solid #444444;
+                }
+                QComboBox QAbstractItemView {
+                    background-color: #222222;
+                    color: white;
+                    selection-background-color: #444444;
+                }
+                QTableWidget {
+                    background-color: #111111;
+                    color: white;
+                    gridline-color: #333333;
+                    border: none;
+                }
+                QTableWidget::item {
+                    border-bottom: 1px solid #333333;
+                    padding: 5px;
+                }
+                QHeaderView::section {
+                    background-color: #222222;
+                    color: white;
+                    padding: 5px;
+                    border: 1px solid #444444;
+                }
+                QScrollBar {
+                    background-color: #222222;
+                }
+                QScrollBar::handle {
+                    background-color: #444444;
+                }
+            """)
             
             self.create_widgets()
             logger.info("ResultsDisplayFrameQt initialized successfully")
@@ -111,13 +181,29 @@ class ResultsDisplayFrameQt(QWidget):
         main_layout.addLayout(interaction_layout)
     
     def setup_algorithm_tab(self, tab, algorithm_name):
-        """Set up a tab for an algorithm"""
+        """Set up a tab for an algorithm with black and white theme"""
         layout = QVBoxLayout(tab)
+        
+        # Create a scroll area
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_content = QWidget()
+        scroll_layout = QVBoxLayout(scroll_content)
         
         # Results text area
         result_text = QTextEdit()
         result_text.setReadOnly(True)
-        layout.addWidget(result_text)
+        result_text.setStyleSheet("""
+            QTextEdit {
+                background-color: #111111;
+                color: white;
+                border: 1px solid #333333;
+                border-radius: 4px;
+                padding: 8px;
+                selection-background-color: #444444;
+            }
+        """)
+        scroll_layout.addWidget(result_text)
         
         # Store the reference
         if algorithm_name == "Brute Force":
@@ -134,10 +220,29 @@ class ResultsDisplayFrameQt(QWidget):
                 viz_frame = QFrame()
                 viz_frame.setFrameShape(QFrame.StyledPanel)
                 viz_frame.setFrameShadow(QFrame.Raised)
+                viz_frame.setStyleSheet("""
+                    QFrame {
+                        background-color: #111111;
+                        border: 1px solid #333333;
+                        border-radius: 4px;
+                        margin-top: 10px;
+                    }
+                """)
                 viz_layout = QVBoxLayout(viz_frame)
                 
-                # Create a canvas for the plot
+                # Create a canvas for the plot with dark theme
                 canvas = MatplotlibCanvas(width=5, height=4, dpi=100)
+                # Set the background of the figure to black
+                canvas.fig.patch.set_facecolor('#111111')
+                canvas.axes.set_facecolor('#111111')
+                # Set the text color to white
+                canvas.axes.xaxis.label.set_color('white')
+                canvas.axes.yaxis.label.set_color('white')
+                canvas.axes.title.set_color('white')
+                canvas.axes.tick_params(colors='white')
+                for spine in canvas.axes.spines.values():
+                    spine.set_edgecolor('#444444')
+                
                 viz_layout.addWidget(canvas)
                 
                 # Store references
@@ -148,26 +253,54 @@ class ResultsDisplayFrameQt(QWidget):
                 else:  # Dynamic Programming
                     self.dynamic_programming_canvas = canvas
                 
-                layout.addWidget(viz_frame)
+                scroll_layout.addWidget(viz_frame)
                 
             except Exception as e:
                 logger.error(f"Error creating matplotlib visualization: {e}")
                 error_label = QLabel("Visualization unavailable. Error initializing matplotlib.")
                 error_label.setStyleSheet("color: red;")
-                layout.addWidget(error_label)
+                scroll_layout.addWidget(error_label)
         else:
             # Display message if matplotlib is not available
             info_label = QLabel("Matplotlib is not available. Install it to see route visualizations.")
-            info_label.setStyleSheet("color: red;")
-            layout.addWidget(info_label)
+            info_label.setStyleSheet("color: #ff6b6b;")
+            scroll_layout.addWidget(info_label)
+        
+        scroll_area.setWidget(scroll_content)
+        layout.addWidget(scroll_area)
     
     def setup_comparison_tab(self):
-        """Set up the comparison tab"""
+        """Set up the comparison tab with black and white theme"""
         layout = QVBoxLayout(self.comparison_tab)
+        
+        # Create a scroll area
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_content = QWidget()
+        scroll_layout = QVBoxLayout(scroll_content)
         
         # Create a table for comparison
         self.comparison_table = QTableWidget(0, 4)  # Rows will be added dynamically
         self.comparison_table.setHorizontalHeaderLabels(["Algorithm", "Route Length", "Time (ms)", "Complexity"])
+        self.comparison_table.setStyleSheet("""
+            QTableWidget {
+                background-color: #111111;
+                color: white;
+                gridline-color: #333333;
+                border: 1px solid #333333;
+                border-radius: 4px;
+            }
+            QTableWidget::item {
+                border-bottom: 1px solid #333333;
+                padding: 5px;
+            }
+            QHeaderView::section {
+                background-color: #222222;
+                color: white;
+                padding: 5px;
+                border: 1px solid #444444;
+            }
+        """)
         
         # Set column widths
         header = self.comparison_table.horizontalHeader()
@@ -176,7 +309,7 @@ class ResultsDisplayFrameQt(QWidget):
         header.setSectionResizeMode(2, header.Stretch)
         header.setSectionResizeMode(3, header.Stretch)
         
-        layout.addWidget(self.comparison_table)
+        scroll_layout.addWidget(self.comparison_table)
         
         # Only create visualization if matplotlib is available
         if MATPLOTLIB_AVAILABLE:
@@ -185,24 +318,46 @@ class ResultsDisplayFrameQt(QWidget):
                 viz_frame = QFrame()
                 viz_frame.setFrameShape(QFrame.StyledPanel)
                 viz_frame.setFrameShadow(QFrame.Raised)
+                viz_frame.setStyleSheet("""
+                    QFrame {
+                        background-color: #111111;
+                        border: 1px solid #333333;
+                        border-radius: 4px;
+                        margin-top: 10px;
+                    }
+                """)
                 viz_layout = QVBoxLayout(viz_frame)
                 
-                # Create a canvas for the plot
+                # Create a canvas for the plot with dark theme
                 self.comparison_canvas = MatplotlibCanvas(width=5, height=4, dpi=100)
+                # Set dark theme for the comparison chart
+                self.comparison_canvas.fig.patch.set_facecolor('#111111')
+                self.comparison_canvas.axes.set_facecolor('#111111')
+                # Set the text color to white
+                self.comparison_canvas.axes.xaxis.label.set_color('white')
+                self.comparison_canvas.axes.yaxis.label.set_color('white')
+                self.comparison_canvas.axes.title.set_color('white')
+                self.comparison_canvas.axes.tick_params(colors='white')
+                for spine in self.comparison_canvas.axes.spines.values():
+                    spine.set_edgecolor('#444444')
+                
                 viz_layout.addWidget(self.comparison_canvas)
                 
-                layout.addWidget(viz_frame)
+                scroll_layout.addWidget(viz_frame)
                 
             except Exception as e:
                 logger.error(f"Error creating comparison chart: {e}")
                 error_label = QLabel("Chart visualization unavailable. Error initializing matplotlib.")
-                error_label.setStyleSheet("color: red;")
-                layout.addWidget(error_label)
+                error_label.setStyleSheet("color: #ff6b6b;")
+                scroll_layout.addWidget(error_label)
         else:
             # Display message if matplotlib is not available
             info_label = QLabel("Matplotlib is not available. Install it to see algorithm performance comparisons graphically.")
-            info_label.setStyleSheet("color: red;")
-            layout.addWidget(info_label)
+            info_label.setStyleSheet("color: #ff6b6b;")
+            scroll_layout.addWidget(info_label)
+        
+        scroll_area.setWidget(scroll_content)
+        layout.addWidget(scroll_area)
     
     def clear_results(self):
         """Clear all result displays"""
@@ -351,20 +506,20 @@ class ResultsDisplayFrameQt(QWidget):
         # Clear previous content
         text_widget.clear()
         
-        # Create formatted HTML for better display
-        html_content = f"<h3>Algorithm: {algorithm_name}</h3>"
-        html_content += f"<p><b>Route:</b> {' → '.join(result['route'])}</p>"
-        html_content += f"<p><b>Total Distance:</b> {result['length']:.2f} km</p>"
-        html_content += f"<p><b>Calculation Time:</b> {result['time']:.4f} ms</p>"
-        html_content += f"<p><b>Time Complexity:</b> {result['complexity']}</p>"
+        # Create formatted HTML for better display with dark theme colors
+        html_content = f"<h3 style='color:white;'>Algorithm: {algorithm_name}</h3>"
+        html_content += f"<p style='color:white;'><b>Route:</b> {' → '.join(result['route'])}</p>"
+        html_content += f"<p style='color:white;'><b>Total Distance:</b> {result['length']:.2f} km</p>"
+        html_content += f"<p style='color:white;'><b>Calculation Time:</b> {result['time']:.4f} ms</p>"
+        html_content += f"<p style='color:white;'><b>Time Complexity:</b> {result['complexity']}</p>"
         
-        # Highlight user's prediction
+        # Highlight user's prediction with dark theme compatible colors
         if self.user_prediction and algorithm_name == self.user_prediction:
-            html_content += "<p style='color:blue; font-weight:bold; background-color:#e6f2ff; padding:5px; border-left:4px solid blue;'>YOUR PREDICTION</p>"
+            html_content += "<p style='color:#3498db; font-weight:bold; background-color:#1a365d; padding:5px; border-left:4px solid #3498db;'>YOUR PREDICTION</p>"
         
-        # Highlight if this is the shortest route
+        # Highlight if this is the shortest route with dark theme compatible colors
         if algorithm_name == self.shortest_algorithm:
-            html_content += "<p style='color:green; font-weight:bold; background-color:#f0ffe0; padding:5px; border-left:4px solid green;'>THIS IS THE SHORTEST ROUTE!</p>"
+            html_content += "<p style='color:#2ecc71; font-weight:bold; background-color:#1c382e; padding:5px; border-left:4px solid #2ecc71;'>THIS IS THE SHORTEST ROUTE!</p>"
         
         text_widget.setHtml(html_content)
         
@@ -437,11 +592,12 @@ class ResultsDisplayFrameQt(QWidget):
             self.comparison_table.setItem(row_position, 2, time_item)
             self.comparison_table.setItem(row_position, 3, complexity_item)
             
-            # Highlight user's prediction with soft blue background
+            # Highlight user's prediction with dark-theme friendly background
             if algo == self.user_prediction:
                 for col in range(4):
                     item = self.comparison_table.item(row_position, col)
-                    item.setBackground(QColor(230, 242, 255))  # Light blue
+                    item.setBackground(QColor(26, 54, 93))  # Dark blue background
+                    item.setForeground(QColor(255, 255, 255))  # White text
                     if col == 0:  # Add "Your Prediction" to the algorithm name
                         item.setText(f"{algo} (Your Prediction)")
             
@@ -449,13 +605,16 @@ class ResultsDisplayFrameQt(QWidget):
             if algo == self.shortest_algorithm:
                 for col in range(4):
                     item = self.comparison_table.item(row_position, col)
-                    item.setBackground(QColor(232, 245, 233))  # Light green
+                    if algo != self.user_prediction:
+                        item.setBackground(QColor(28, 56, 46))  # Dark green background
+                        item.setForeground(QColor(255, 255, 255))  # White text
                     if col == 0 and algo != self.user_prediction:  # Add "Shortest Route" to the algorithm name
                         item.setText(f"{algo} (Shortest Route)")
                     elif col == 0 and algo == self.user_prediction:  # Both prediction and shortest
                         item.setText(f"{algo} (Your Prediction ✓ Shortest Route)")
                         # Special highlight for correct prediction
-                        item.setBackground(QColor(220, 237, 200))  # Lighter green
+                        item.setBackground(QColor(38, 77, 63))  # Slightly lighter dark green
+                        item.setForeground(QColor(255, 255, 255))  # White text
         
         # Create enhanced bar chart comparison only if matplotlib is available
         if MATPLOTLIB_AVAILABLE and hasattr(self, 'comparison_canvas'):
@@ -506,7 +665,8 @@ class ResultsDisplayFrameQt(QWidget):
                                 xytext=(0, 3),  # 3 points vertical offset
                                 textcoords="offset points",
                                 ha='center', va='bottom',
-                                fontsize=9)
+                                fontsize=9,
+                                color='white')  # Make labels white
                 
                 # Twin axis for time
                 ax2 = ax.twinx()
@@ -522,7 +682,7 @@ class ResultsDisplayFrameQt(QWidget):
                                 textcoords="offset points",
                                 ha='center', va='bottom',
                                 fontsize=9,
-                                color='#333')
+                                color='white')  # Make labels white
                 
                 # Add enhanced legend
                 lines1, labels1 = ax.get_legend_handles_labels()
@@ -617,24 +777,75 @@ class ResultsDisplayFrameQt(QWidget):
         prediction_dialog = QDialog(self)
         prediction_dialog.setWindowTitle("Make Your Prediction")
         prediction_dialog.setMinimumWidth(400)
+        prediction_dialog.setStyleSheet("""
+            QDialog {
+                background-color: black;
+                color: white;
+            }
+            QLabel {
+                color: white;
+            }
+            QPushButton {
+                background-color: #222222;
+                color: white;
+                border: 1px solid #444444;
+                border-radius: 4px;
+                padding: 6px 12px;
+            }
+            QPushButton:hover {
+                background-color: #333333;
+            }
+            QPushButton:pressed {
+                background-color: #444444;
+            }
+            QPushButton:disabled {
+                background-color: #222222;
+                color: #666666;
+            }
+            QComboBox {
+                background-color: #222222;
+                color: white;
+                border: 1px solid #444444;
+                border-radius: 4px;
+                padding: 5px;
+                min-width: 6em;
+            }
+            QComboBox::drop-down {
+                subcontrol-origin: padding;
+                subcontrol-position: top right;
+                width: 20px;
+                border-left: 1px solid #444444;
+            }
+            QComboBox QAbstractItemView {
+                background-color: #222222;
+                color: white;
+                selection-background-color: #444444;
+            }
+        """)
         
         layout = QVBoxLayout(prediction_dialog)
         
         # Information label
         info_label = QLabel(
-            f"<p>You have selected {len(self.game_state.selected_cities)} cities to visit.</p>"
-            f"<p>Before calculating the routes, predict which algorithm will find the shortest path:</p>"
+            f"<p style='color: white;'>You have selected {len(self.game_state.selected_cities)} cities to visit.</p>"
+            f"<p style='color: white;'>Before calculating the routes, predict which algorithm will find the shortest path:</p>"
         )
         info_label.setWordWrap(True)
         layout.addWidget(info_label)
         
         # Algorithm description
         algo_info = QLabel(
-            "<p><b>Brute Force</b>: Tries all possible routes (O(n!))</p>"
-            "<p><b>Nearest Neighbor</b>: Always visits closest unvisited city (O(n²))</p>"
-            "<p><b>Dynamic Programming</b>: Uses optimal subproblems (O(n²2ⁿ))</p>"
+            "<p style='color: white;'><b>Brute Force</b>: Tries all possible routes (O(n!))</p>"
+            "<p style='color: white;'><b>Nearest Neighbor</b>: Always visits closest unvisited city (O(n²))</p>"
+            "<p style='color: white;'><b>Dynamic Programming</b>: Uses optimal subproblems (O(n²2ⁿ))</p>"
         )
-        algo_info.setStyleSheet("background-color: #f0f0f0; padding: 10px; border-radius: 5px;")
+        algo_info.setStyleSheet("""
+            background-color: #111111;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #333333;
+        """)
         algo_info.setWordWrap(True)
         layout.addWidget(algo_info)
         

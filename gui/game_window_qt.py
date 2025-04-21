@@ -16,21 +16,16 @@ from core.city_map import CityMap
 from database.db_manager import DatabaseManager
 from gui.city_selection_qt import CitySelectionFrameQt
 from gui.results_display_qt import ResultsDisplayFrameQt
+from utils.styling import AppStyles
 
 # Configure logging
 logger = logging.getLogger("GameWindow")
 
 class StyledFrame(QFrame):
-    """Custom frame with black and white styling for containers"""
+    """Custom frame with black background and white text styling for containers"""
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setStyleSheet("""
-            background-color: white;
-            border: 1px solid black;
-            border-radius: 8px;
-            padding: 10px;
-            margin: 5px;
-        """)
+        self.setStyleSheet(AppStyles.get_styled_frame_stylesheet())
         self.setFrameShape(QFrame.StyledPanel)
 
 class GameWindowQt(QMainWindow):
@@ -42,6 +37,9 @@ class GameWindowQt(QMainWindow):
             # Set up the main window
             self.setWindowTitle("Traveling Salesman Problem Game")
             self.resize(1000, 700)
+            
+            # Set application-wide stylesheet for black background and white text
+            self.setStyleSheet(AppStyles.get_dark_theme_stylesheet())
             
             self.db_manager = DatabaseManager()
             self.game_state = GameState()
@@ -116,7 +114,7 @@ class GameWindowQt(QMainWindow):
         help_menu.addAction(about_action)
 
     def create_player_info_section(self):
-        """Create the player information section with black and white styling"""
+        """Create the player information section with black background and white text styling"""
         logger.debug("Creating player info section")
         
         # Create a styled container for player info
@@ -127,36 +125,34 @@ class GameWindowQt(QMainWindow):
         
         # Player name section with styled label
         player_label = QLabel("Player:")
-        player_label.setStyleSheet("font-weight: bold; color: black;")
+        player_label.setStyleSheet("font-weight: bold; color: white;")
         player_layout.addWidget(player_label)
         
         self.player_name_input = QLineEdit("Player")
         self.player_name_input.setMinimumWidth(150)
-        self.player_name_input.setStyleSheet("""
-            border: 1px solid black;
-            border-radius: 4px;
-            padding: 5px;
-        """)
+        self.player_name_input.setStyleSheet(AppStyles.get_input_field_stylesheet())
         player_layout.addWidget(self.player_name_input)
         
-        # Home city display with black and white styling
+        # Home city display with black background and white text styling
         home_city_container = QFrame()
         home_city_container.setStyleSheet("""
-            background-color: white;
-            border: 1px solid black;
+            background-color: #222222;
+            color: white;
+            border: 1px solid #444444;
             border-radius: 4px;
             padding: 5px 10px;
         """)
         home_city_layout = QHBoxLayout(home_city_container)
         home_city_layout.setContentsMargins(8, 5, 8, 5)
         
-        home_icon_label = QLabel("🏠")  # Unicode home emoji
-        home_icon_label.setStyleSheet("font-size: 16px; color: black;")
+        # Replace Unicode emoji with more compatible text icon
+        home_icon_label = QLabel("HOME")
+        home_icon_label.setStyleSheet("font-size: 14px; font-weight: bold; color: white;")
         home_city_layout.addWidget(home_icon_label)
         
         self.home_city_label = QLabel("")
         self.home_city_label.setStyleSheet("""
-            color: black; 
+            color: white; 
             font-weight: bold; 
             font-size: 14px;
         """)
@@ -168,44 +164,13 @@ class GameWindowQt(QMainWindow):
         
         # High Scores button with black and white styling
         high_scores_button = QPushButton("High Scores")
-        high_scores_button.setStyleSheet("""
-            QPushButton {
-                background-color: black;
-                color: white;
-                border: none;
-                border-radius: 4px;
-                padding: 10px 15px;
-                font-weight: bold;
-                margin-right: 10px;
-            }
-            QPushButton:hover {
-                background-color: #444;
-            }
-            QPushButton:pressed {
-                background-color: #777;
-            }
-        """)
+        high_scores_button.setStyleSheet(AppStyles.get_button_stylesheet())
         high_scores_button.clicked.connect(self.view_high_scores)
         player_layout.addWidget(high_scores_button)
         
         # Start button with black and white styling
         start_button = QPushButton("Start New Game")
-        start_button.setStyleSheet("""
-            QPushButton {
-                background-color: black;
-                color: white;
-                border: none;
-                border-radius: 4px;
-                padding: 10px 20px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #444;
-            }
-            QPushButton:pressed {
-                background-color: #777;
-            }
-        """)
+        start_button.setStyleSheet(AppStyles.get_button_stylesheet())
         start_button.clicked.connect(self.start_new_game)
         player_layout.addWidget(start_button)
         
@@ -226,6 +191,14 @@ class GameWindowQt(QMainWindow):
         # Create the results display frame
         self.results_display = ResultsDisplayFrameQt(self.game_state, self.db_manager)
         self.main_layout.addWidget(self.results_display)
+
+    def initialize_game_display(self):
+        """Initialize the game display with home city information"""
+        if self.game_state and self.game_state.home_city:
+            self.home_city_label.setText(f"Home city: {self.game_state.home_city}")
+        else:
+            logger.warning("initialize_game_display: No home city set")
+            self.home_city_label.setText("Home city: Not set")
 
     def start_new_game(self):
         """Start a new game round"""
@@ -260,7 +233,7 @@ class GameWindowQt(QMainWindow):
         dialog = QDialog(self)
         dialog.setWindowTitle("High Scores & Statistics")
         dialog.resize(800, 600)
-        dialog.setStyleSheet("background-color: black; color: white;")
+        dialog.setStyleSheet(AppStyles.get_dialog_stylesheet())
         layout = QVBoxLayout(dialog)
         
         # Add a title with bold styling
@@ -603,7 +576,7 @@ class GameWindowQt(QMainWindow):
         
         close_button = QPushButton("Close", dialog)
         close_button.clicked.connect(dialog.close)
-        close_button.setStyleSheet("background-color: white; color: black; padding: 8px 16px; border-radius: 4px; font-weight: bold;")
+        close_button.setStyleSheet("background-color: #222222; color: white; padding: 8px 16px; border-radius: 4px; font-weight: bold;")
         button_layout.addWidget(close_button)
         
         layout.addLayout(button_layout)
@@ -611,47 +584,105 @@ class GameWindowQt(QMainWindow):
         dialog.exec_()
 
     def show_rules(self):
-        """Display game rules"""
+        """Display game rules with proper dark theme styling"""
         logger.debug("Showing rules")
-        rules = """
-        <h3>Traveling Salesman Problem Game Rules:</h3>
         
-        <ol>
-            <li>You will be assigned a random home city.</li>
-            <li>Select cities you wish to visit by checking the boxes.</li>
-            <li>Try to find the shortest route that visits all selected cities and returns home.</li>
-            <li>The game will calculate the shortest route using three different algorithms.</li>
-            <li>Your score is saved when you correctly identify the shortest route.</li>
-        </ol>
+        # Create a custom dialog for better styling control
+        rules_dialog = QDialog(self)
+        rules_dialog.setWindowTitle("Game Rules")
+        rules_dialog.setMinimumWidth(500)
+        rules_dialog.setStyleSheet(AppStyles.get_dialog_stylesheet())
         
-        <p>Good luck!</p>
-        """
+        layout = QVBoxLayout(rules_dialog)
         
-        QMessageBox.information(self, "Game Rules", rules)
-
+        # Create a scroll area for the rules
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setFrameShape(QFrame.NoFrame)
+        scroll_area.setStyleSheet("""
+            background-color: black;
+            border: none;
+        """)
+        
+        # Container for the rules text
+        rules_container = QWidget()
+        rules_layout = QVBoxLayout(rules_container)
+        
+        # Title with enhanced styling
+        title = QLabel("<h2 style='color:white;'>Traveling Salesman Problem Game Rules</h2>")
+        title.setAlignment(Qt.AlignCenter)
+        rules_layout.addWidget(title)
+        
+        # Rules content with styled HTML
+        rules_content = QLabel("""
+        <div style='color:white; font-size:14px; margin:10px;'>
+            <p style='color:white;'>The Traveling Salesman Problem (TSP) is a classic algorithmic challenge:</p>
+            
+            <p style='color:white; margin-left:15px;'><i>Given a list of cities and the distances between them, 
+            what is the shortest possible route that visits each city exactly once and returns to the origin city?</i></p>
+            
+            <h3 style='color:white; margin-top:20px;'>Game Rules:</h3>
+            
+            <ol style='color:white;'>
+                <li>You start at a randomly assigned home city.</li>
+                <li>Select additional cities you wish to visit by checking the boxes.</li>
+                <li>Before calculating routes, you'll be asked to predict which algorithm will find the shortest path.</li>
+                <li>The game will calculate the optimal route using three different algorithms:
+                    <ul>
+                        <li><strong>Brute Force</strong>: Checks all possible routes (exact but slow for many cities)</li>
+                        <li><strong>Nearest Neighbor</strong>: Greedily selects the closest unvisited city (fast but approximate)</li>
+                        <li><strong>Dynamic Programming</strong>: Uses optimal substructure to find the best solution (balance of accuracy and speed)</li>
+                    </ul>
+                </li>
+                <li>The results will show you the optimal route, distance, and time taken for each algorithm.</li>
+                <li>Your score will be saved to the high scores table.</li>
+            </ol>
+            
+            <h3 style='color:white; margin-top:20px;'>Tips:</h3>
+            
+            <ul style='color:white;'>
+                <li>For small numbers of cities (up to 10), Brute Force will find the exact optimal route.</li>
+                <li>For larger numbers of cities, Dynamic Programming offers a good balance of speed and accuracy.</li>
+                <li>Nearest Neighbor is the fastest but may not find the optimal route.</li>
+                <li>Try to predict which algorithm will perform best for different numbers of cities!</li>
+            </ul>
+        </div>
+        """)
+        rules_content.setWordWrap(True)
+        rules_content.setTextFormat(Qt.RichText)
+        rules_layout.addWidget(rules_content)
+        
+        scroll_area.setWidget(rules_container)
+        layout.addWidget(scroll_area)
+        
+        # Close button
+        close_button = QPushButton("Close", rules_dialog)
+        close_button.clicked.connect(rules_dialog.close)
+        close_button.setStyleSheet("""
+            QPushButton {
+                background-color: #222222;
+                color: white;
+                border: 1px solid #444444;
+                border-radius: 4px;
+                padding: 6px 12px;
+                min-width: 80px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #444444;
+            }
+        """)
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        button_layout.addWidget(close_button)
+        layout.addLayout(button_layout)
+        
+        rules_dialog.exec_()
+        
     def show_about(self):
-        """Show about information"""
-        logger.debug("Showing about information")
-        about_text = """
-        <h3>Traveling Salesman Problem Game</h3>
-        
-        <p>A simulation game to learn about route optimization algorithms.</p>
-        
-        <p>The Traveling Salesman Problem is a classic algorithmic problem in computer science.
-        It asks the question: "Given a list of cities and the distances between each pair of cities, 
-        what is the shortest possible route that visits each city exactly once and returns to the origin city?"</p>
-        """
-        
-        QMessageBox.information(self, "About", about_text)
-
-    def initialize_game_display(self):
-        """Initialize the game display with cities and the distance matrix"""
-        logger.debug("Initializing game display")
-        # Update the city selection display
-        self.city_selection.update_cities_display()
-        
-        # Clear any previous results in the results display
-        self.results_display.clear_results()
-        
-        # Display the home city
-        self.home_city_label.setText(f"Home city: {self.game_state.home_city}")
+        """Display information about the application"""
+        QMessageBox.about(self, "About TSP Game", 
+            """<h3>Traveling Salesman Problem Game</h3>
+            <p>An educational game that demonstrates different algorithms for solving the TSP.</p>
+            <p>Version 1.1</p>
+            <p>© 2025 Algorithm Games</p>""")
