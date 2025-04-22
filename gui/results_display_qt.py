@@ -111,15 +111,57 @@ class ResultsDisplayFrameQt(QWidget):
                     padding: 5px;
                     border: 1px solid #444444;
                 }
-                QScrollBar {
+                QScrollBar:vertical {
                     background-color: #222222;
+                    width: 12px;
+                    margin: 12px 0 12px 0;
                 }
-                QScrollBar::handle {
+                QScrollBar::handle:vertical {
                     background-color: #444444;
+                    border-radius: 3px;
+                    min-height: 20px;
+                }
+                QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                    border: none;
+                    background: none;
+                }
+                QScrollBar:horizontal {
+                    background-color: #222222;
+                    height: 12px;
+                    margin: 0 12px 0 12px;
+                }
+                QScrollBar::handle:horizontal {
+                    background-color: #444444;
+                    border-radius: 3px;
+                    min-width: 20px;
+                }
+                QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+                    border: none;
+                    background: none;
                 }
             """)
             
+            # Create a main scroll area for the entire widget
+            self.main_scroll = QScrollArea()
+            self.main_scroll.setWidgetResizable(True)
+            self.main_scroll.setFrameShape(QFrame.NoFrame)
+            
+            # Create a container widget for all content
+            self.content_widget = QWidget()
+            self.main_layout = QVBoxLayout(self.content_widget)
+            self.main_layout.setSpacing(15)  # Increase spacing between elements
+            
+            # Create the widgets within the scroll area
             self.create_widgets()
+            
+            # Set the content widget as the scroll area's widget
+            self.main_scroll.setWidget(self.content_widget)
+            
+            # Set the main layout for this widget to contain just the scroll area
+            main_outer_layout = QVBoxLayout(self)
+            main_outer_layout.setContentsMargins(0, 0, 0, 0)  # Remove margins
+            main_outer_layout.addWidget(self.main_scroll)
+            
             logger.info("ResultsDisplayFrameQt initialized successfully")
         except Exception as e:
             logger.error(f"Error in ResultsDisplayFrameQt initialization: {str(e)}")
@@ -129,12 +171,10 @@ class ResultsDisplayFrameQt(QWidget):
     
     def create_widgets(self):
         """Create the widgets for results display"""
-        main_layout = QVBoxLayout(self)
-        
         # Title
         title_label = QLabel("Route Calculation Results")
         title_label.setStyleSheet("font-size: 14px; font-weight: bold;")
-        main_layout.addWidget(title_label)
+        self.main_layout.addWidget(title_label)
         
         # Create a tab widget for algorithm results
         self.tab_widget = QTabWidget()
@@ -156,7 +196,7 @@ class ResultsDisplayFrameQt(QWidget):
         self.setup_algorithm_tab(self.dynamic_programming_tab, "Dynamic Programming")
         self.setup_comparison_tab()
         
-        main_layout.addWidget(self.tab_widget)
+        self.main_layout.addWidget(self.tab_widget)
         
         # User interaction area
         interaction_layout = QHBoxLayout()
@@ -178,21 +218,16 @@ class ResultsDisplayFrameQt(QWidget):
         
         # Add stretch to push everything to the left
         interaction_layout.addStretch(1)
-        main_layout.addLayout(interaction_layout)
+        self.main_layout.addLayout(interaction_layout)
     
     def setup_algorithm_tab(self, tab, algorithm_name):
         """Set up a tab for an algorithm with black and white theme"""
         layout = QVBoxLayout(tab)
         
-        # Create a scroll area
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_content = QWidget()
-        scroll_layout = QVBoxLayout(scroll_content)
-        
         # Results text area
         result_text = QTextEdit()
         result_text.setReadOnly(True)
+        result_text.setMinimumHeight(100)
         result_text.setStyleSheet("""
             QTextEdit {
                 background-color: #111111;
@@ -203,7 +238,7 @@ class ResultsDisplayFrameQt(QWidget):
                 selection-background-color: #444444;
             }
         """)
-        scroll_layout.addWidget(result_text)
+        layout.addWidget(result_text)
         
         # Store the reference
         if algorithm_name == "Brute Force":
@@ -231,7 +266,7 @@ class ResultsDisplayFrameQt(QWidget):
                 viz_layout = QVBoxLayout(viz_frame)
                 
                 # Create a canvas for the plot with dark theme
-                canvas = MatplotlibCanvas(width=5, height=4, dpi=100)
+                canvas = MatplotlibCanvas(width=5, height=6, dpi=100)  # Increased height for better visualization
                 # Set the background of the figure to black
                 canvas.fig.patch.set_facecolor('#111111')
                 canvas.axes.set_facecolor('#111111')
@@ -253,35 +288,27 @@ class ResultsDisplayFrameQt(QWidget):
                 else:  # Dynamic Programming
                     self.dynamic_programming_canvas = canvas
                 
-                scroll_layout.addWidget(viz_frame)
+                layout.addWidget(viz_frame)
                 
             except Exception as e:
                 logger.error(f"Error creating matplotlib visualization: {e}")
                 error_label = QLabel("Visualization unavailable. Error initializing matplotlib.")
                 error_label.setStyleSheet("color: red;")
-                scroll_layout.addWidget(error_label)
+                layout.addWidget(error_label)
         else:
             # Display message if matplotlib is not available
             info_label = QLabel("Matplotlib is not available. Install it to see route visualizations.")
             info_label.setStyleSheet("color: #ff6b6b;")
-            scroll_layout.addWidget(info_label)
-        
-        scroll_area.setWidget(scroll_content)
-        layout.addWidget(scroll_area)
+            layout.addWidget(info_label)
     
     def setup_comparison_tab(self):
         """Set up the comparison tab with black and white theme"""
         layout = QVBoxLayout(self.comparison_tab)
         
-        # Create a scroll area
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_content = QWidget()
-        scroll_layout = QVBoxLayout(scroll_content)
-        
         # Create a table for comparison
         self.comparison_table = QTableWidget(0, 4)  # Rows will be added dynamically
         self.comparison_table.setHorizontalHeaderLabels(["Algorithm", "Route Length", "Time (ms)", "Complexity"])
+        self.comparison_table.setMinimumHeight(150)
         self.comparison_table.setStyleSheet("""
             QTableWidget {
                 background-color: #111111;
@@ -309,7 +336,7 @@ class ResultsDisplayFrameQt(QWidget):
         header.setSectionResizeMode(2, header.Stretch)
         header.setSectionResizeMode(3, header.Stretch)
         
-        scroll_layout.addWidget(self.comparison_table)
+        layout.addWidget(self.comparison_table)
         
         # Only create visualization if matplotlib is available
         if MATPLOTLIB_AVAILABLE:
@@ -329,7 +356,7 @@ class ResultsDisplayFrameQt(QWidget):
                 viz_layout = QVBoxLayout(viz_frame)
                 
                 # Create a canvas for the plot with dark theme
-                self.comparison_canvas = MatplotlibCanvas(width=5, height=4, dpi=100)
+                self.comparison_canvas = MatplotlibCanvas(width=5, height=6, dpi=100)  # Increased height
                 # Set dark theme for the comparison chart
                 self.comparison_canvas.fig.patch.set_facecolor('#111111')
                 self.comparison_canvas.axes.set_facecolor('#111111')
@@ -343,21 +370,18 @@ class ResultsDisplayFrameQt(QWidget):
                 
                 viz_layout.addWidget(self.comparison_canvas)
                 
-                scroll_layout.addWidget(viz_frame)
+                layout.addWidget(viz_frame)
                 
             except Exception as e:
                 logger.error(f"Error creating comparison chart: {e}")
                 error_label = QLabel("Chart visualization unavailable. Error initializing matplotlib.")
                 error_label.setStyleSheet("color: #ff6b6b;")
-                scroll_layout.addWidget(error_label)
+                layout.addWidget(error_label)
         else:
             # Display message if matplotlib is not available
             info_label = QLabel("Matplotlib is not available. Install it to see algorithm performance comparisons graphically.")
             info_label.setStyleSheet("color: #ff6b6b;")
-            scroll_layout.addWidget(info_label)
-        
-        scroll_area.setWidget(scroll_content)
-        layout.addWidget(scroll_area)
+            layout.addWidget(info_label)
     
     def clear_results(self):
         """Clear all result displays"""

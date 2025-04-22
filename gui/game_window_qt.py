@@ -59,10 +59,62 @@ class GameWindowQt(QMainWindow):
             # Create the menu
             self.create_menu()
             
-            # Set up the central widget and layout
+            # Set up the central widget with a scroll area for the entire content
             self.central_widget = QWidget()
             self.setCentralWidget(self.central_widget)
-            self.main_layout = QVBoxLayout(self.central_widget)
+            
+            # Create main vertical layout for central widget
+            outer_layout = QVBoxLayout(self.central_widget)
+            outer_layout.setContentsMargins(0, 0, 0, 0)
+            outer_layout.setSpacing(0)
+            
+            # Create scroll area for main content
+            self.scroll_area = QScrollArea()
+            self.scroll_area.setWidgetResizable(True)
+            self.scroll_area.setStyleSheet("""
+                QScrollArea {
+                    border: none;
+                    background-color: transparent;
+                }
+                QScrollBar:vertical {
+                    border: none;
+                    background: #222222;
+                    width: 14px;
+                    margin: 0px;
+                }
+                QScrollBar::handle:vertical {
+                    background: #555555;
+                    min-height: 20px;
+                    border-radius: 7px;
+                }
+                QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                    height: 0px;
+                }
+                QScrollBar:horizontal {
+                    border: none;
+                    background: #222222;
+                    height: 14px;
+                    margin: 0px;
+                }
+                QScrollBar::handle:horizontal {
+                    background: #555555;
+                    min-width: 20px;
+                    border-radius: 7px;
+                }
+                QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+                    width: 0px;
+                }
+            """)
+            
+            # Create a container widget for all content that will be placed in the scroll area
+            self.content_widget = QWidget()
+            self.main_layout = QVBoxLayout(self.content_widget)
+            self.main_layout.setContentsMargins(20, 20, 20, 20)  # Increased padding for better clarity
+            self.main_layout.setSpacing(20)  # Increased spacing for better separation between sections
+            
+            # Set the content widget as the scroll area's widget
+            self.scroll_area.setWidget(self.content_widget)
+            outer_layout.addWidget(self.scroll_area)
             
             # Player info section
             self.create_player_info_section()
