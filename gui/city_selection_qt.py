@@ -43,10 +43,11 @@ class CitySelectionFrameQt(QWidget):
                 QCheckBox {
                     color: white;
                     spacing: 8px;
+                    font-size: 14px;
                 }
                 QCheckBox::indicator {
-                    width: 14px;
-                    height: 14px;
+                    width: 16px;
+                    height: 16px;
                     border: 1px solid #666666;
                 }
                 QCheckBox::indicator:checked {
@@ -77,16 +78,17 @@ class CitySelectionFrameQt(QWidget):
         
         # Title and instructions
         title_label = QLabel("Select Cities to Visit")
-        title_label.setStyleSheet("font-size: 16px; font-weight: bold; color: white; margin-bottom: 5px;")
+        title_label.setStyleSheet("font-size: 18px; font-weight: bold; color: white; margin-bottom: 8px;")
         main_layout.addWidget(title_label)
         
         instruction_label = QLabel("Check the cities you want to visit (must select at least 2):")
-        instruction_label.setStyleSheet("color: #cccccc; font-size: 13px; margin-bottom: 10px;")
+        instruction_label.setStyleSheet("color: #cccccc; font-size: 14px; margin-bottom: 12px;")
         main_layout.addWidget(instruction_label)
         
-        # City selection area
+        # City selection area with scroll functionality
         city_group = QGroupBox("Cities")
-        city_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        city_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.MinimumExpanding)
+        city_group.setMinimumHeight(250)  # Increased height
         city_group.setStyleSheet("""
             QGroupBox {
                 border: 1px solid #444444;
@@ -101,10 +103,43 @@ class CitySelectionFrameQt(QWidget):
                 padding: 0 8px;
                 color: white;
                 font-weight: bold;
+                font-size: 15px;
             }
         """)
-        self.city_layout = QGridLayout(city_group)
-        self.city_layout.setSpacing(10)
+        
+        # Create a scroll area for the city selection
+        city_scroll_area = QScrollArea()
+        city_scroll_area.setWidgetResizable(True)
+        city_scroll_area.setStyleSheet("""
+            QScrollArea {
+                border: none;
+                background-color: transparent;
+            }
+            QScrollBar:vertical {
+                border: none;
+                background: #222222;
+                width: 12px;
+                margin: 0px;
+            }
+            QScrollBar::handle:vertical {
+                background: #555555;
+                min-height: 20px;
+                border-radius: 6px;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+        """)
+        
+        city_container = QWidget()
+        city_container.setStyleSheet("background-color: #111111;")
+        self.city_layout = QGridLayout(city_container)
+        self.city_layout.setSpacing(15)  # Increased spacing between checkboxes
+        
+        city_scroll_area.setWidget(city_container)
+        
+        city_group_layout = QVBoxLayout(city_group)
+        city_group_layout.addWidget(city_scroll_area)
         main_layout.addWidget(city_group)
         
         # Button area
@@ -119,8 +154,9 @@ class CitySelectionFrameQt(QWidget):
                 color: white;
                 border: 1px solid #444444;
                 border-radius: 4px;
-                padding: 10px 20px;
+                padding: 12px 25px;
                 font-weight: bold;
+                font-size: 14px;
             }
             QPushButton:hover {
                 background-color: #444444;
@@ -139,7 +175,8 @@ class CitySelectionFrameQt(QWidget):
                 color: white;
                 border: 1px solid #444444;
                 border-radius: 4px;
-                padding: 8px 15px;
+                padding: 10px 18px;
+                font-size: 13px;
             }
             QPushButton:hover {
                 background-color: #444444;
@@ -158,7 +195,8 @@ class CitySelectionFrameQt(QWidget):
                 color: white;
                 border: 1px solid #444444;
                 border-radius: 4px;
-                padding: 8px 15px;
+                padding: 10px 18px;
+                font-size: 13px;
             }
             QPushButton:hover {
                 background-color: #444444;
@@ -173,9 +211,10 @@ class CitySelectionFrameQt(QWidget):
         button_layout.addStretch(1)
         main_layout.addLayout(button_layout)
         
-        # Distance matrix area
+        # Distance matrix area with better visual clarity
         matrix_group = QGroupBox("Distance Matrix")
         matrix_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        matrix_group.setMinimumHeight(300)  # Increased height
         matrix_group.setStyleSheet("""
             QGroupBox {
                 border: 1px solid #444444;
@@ -190,6 +229,7 @@ class CitySelectionFrameQt(QWidget):
                 padding: 0 8px;
                 color: white;
                 font-weight: bold;
+                font-size: 15px;
             }
         """)
         matrix_layout = QVBoxLayout(matrix_group)
@@ -205,13 +245,13 @@ class CitySelectionFrameQt(QWidget):
             QScrollBar:vertical {
                 border: none;
                 background: #222222;
-                width: 10px;
+                width: 12px;
                 margin: 0px;
             }
             QScrollBar::handle:vertical {
                 background: #555555;
                 min-height: 20px;
-                border-radius: 5px;
+                border-radius: 6px;
             }
             QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
                 height: 0px;
@@ -219,13 +259,13 @@ class CitySelectionFrameQt(QWidget):
             QScrollBar:horizontal {
                 border: none;
                 background: #222222;
-                height: 10px;
+                height: 12px;
                 margin: 0px;
             }
             QScrollBar::handle:horizontal {
                 background: #555555;
                 min-width: 20px;
-                border-radius: 5px;
+                border-radius: 6px;
             }
             QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
                 width: 0px;
@@ -260,8 +300,8 @@ class CitySelectionFrameQt(QWidget):
         cities = self.game_state.city_map.get_cities()
         home_city = self.game_state.home_city
         
-        # Create checkboxes for each city
-        cols = 5
+        # Create checkboxes for each city with improved visual display
+        cols = 4  # Reduced columns for better layout
         for i, city in enumerate(cities):
             row, col = divmod(i, cols)
             
@@ -272,24 +312,34 @@ class CitySelectionFrameQt(QWidget):
                 checkbox.setStyleSheet("""
                     color: #4299e1;
                     font-weight: bold;
+                    font-size: 15px;
                     background-color: rgba(26, 54, 93, 0.4);
-                    border-radius: 3px;
-                    padding: 2px;
+                    border-radius: 5px;
+                    padding: 8px;
+                    margin: 5px;
                 """)
             else:
                 checkbox = QCheckBox(city)
                 checkbox.setChecked(False)
                 checkbox.setStyleSheet("""
                     color: white;
-                    padding: 2px;
+                    font-size: 15px;
+                    padding: 8px;
+                    margin: 5px;
+                    border: 1px solid #333333;
+                    border-radius: 5px;
+                    background-color: #222222;
                 """)
             
             self.city_layout.addWidget(checkbox, row, col)
             self.city_checkboxes[city] = checkbox
         
+        # Ensure the grid layout has consistent spacing
+        self.city_layout.setRowStretch(row+1, 1)
+        
         # Update the distance matrix display
         self.update_distance_matrix()
-        logger.debug("City selection checkboxes updated")
+        logger.debug("City selection checkboxes updated with enhanced visual clarity")
     
     def update_distance_matrix(self):
         """Display the distance matrix in the UI with black background and white text"""
@@ -309,8 +359,9 @@ class CitySelectionFrameQt(QWidget):
         header_cell = QLabel("")
         header_cell.setStyleSheet("""
             background-color: #222222;
-            padding: 6px;
+            padding: 8px;
             border: 1px solid #333333;
+            font-weight: bold;
         """)
         self.matrix_layout.addWidget(header_cell, 0, 0)
         
@@ -318,11 +369,13 @@ class CitySelectionFrameQt(QWidget):
             header_label = QLabel(city)
             header_label.setStyleSheet("""
                 font-weight: bold;
+                font-size: 14px;
                 color: white;
                 background-color: #333333;
-                padding: 6px;
+                padding: 8px;
                 border: 1px solid #444444;
             """)
+            header_label.setAlignment(Qt.AlignCenter)
             self.matrix_layout.addWidget(header_label, 0, i + 1)
         
         # Create the matrix with distances - styled cells
@@ -331,17 +384,19 @@ class CitySelectionFrameQt(QWidget):
             header_label = QLabel(city1)
             header_label.setStyleSheet("""
                 font-weight: bold;
+                font-size: 14px;
                 color: white;
                 background-color: #333333;
-                padding: 6px;
+                padding: 8px;
                 border: 1px solid #444444;
             """)
+            header_label.setAlignment(Qt.AlignCenter)
             self.matrix_layout.addWidget(header_label, i + 1, 0)
             
             for j, city2 in enumerate(cities):
                 cell = QFrame()
                 cell_layout = QVBoxLayout(cell)
-                cell_layout.setContentsMargins(5, 5, 5, 5)
+                cell_layout.setContentsMargins(8, 8, 8, 8)
                 
                 if city1 == city2:
                     # Diagonal cells (same city to same city)
@@ -368,7 +423,7 @@ class CitySelectionFrameQt(QWidget):
                         """)
                 
                 label.setAlignment(Qt.AlignCenter)
-                label.setStyleSheet("color: white;")
+                label.setStyleSheet("color: white; font-size: 13px;")
                 cell_layout.addWidget(label)
                 self.matrix_layout.addWidget(cell, i + 1, j + 1)
         

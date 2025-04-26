@@ -36,7 +36,7 @@ class GameWindowQt(QMainWindow):
             
             # Set up the main window
             self.setWindowTitle("Traveling Salesman Problem Game")
-            self.resize(1000, 700)
+            self.resize(1200, 800)  # Increased window size to accommodate enhanced UI
             
             # Set application-wide stylesheet for black background and white text
             self.setStyleSheet(AppStyles.get_dark_theme_stylesheet())
@@ -68,7 +68,7 @@ class GameWindowQt(QMainWindow):
             outer_layout.setContentsMargins(0, 0, 0, 0)
             outer_layout.setSpacing(0)
             
-            # Create scroll area for main content
+            # Create scroll area for main content with improved styling
             self.scroll_area = QScrollArea()
             self.scroll_area.setWidgetResizable(True)
             self.scroll_area.setStyleSheet("""
@@ -110,7 +110,7 @@ class GameWindowQt(QMainWindow):
             self.content_widget = QWidget()
             self.main_layout = QVBoxLayout(self.content_widget)
             self.main_layout.setContentsMargins(20, 20, 20, 20)  # Increased padding for better clarity
-            self.main_layout.setSpacing(20)  # Increased spacing for better separation between sections
+            self.main_layout.setSpacing(25)  # Increased spacing between sections for better visual separation
             
             # Set the content widget as the scroll area's widget
             self.scroll_area.setWidget(self.content_widget)
@@ -172,57 +172,95 @@ class GameWindowQt(QMainWindow):
         # Create a styled container for player info
         player_container = StyledFrame()
         player_layout = QHBoxLayout(player_container)
-        player_layout.setContentsMargins(15, 15, 15, 15)
-        player_layout.setSpacing(15)
+        player_layout.setContentsMargins(18, 18, 18, 18)  # Increased padding
+        player_layout.setSpacing(18)  # More spacing for better visual separation
         
         # Player name section with styled label
         player_label = QLabel("Player:")
-        player_label.setStyleSheet("font-weight: bold; color: white;")
+        player_label.setStyleSheet("font-weight: bold; color: white; font-size: 15px;")  # Increased font size
         player_layout.addWidget(player_label)
         
         self.player_name_input = QLineEdit("Player")
-        self.player_name_input.setMinimumWidth(150)
-        self.player_name_input.setStyleSheet(AppStyles.get_input_field_stylesheet())
+        self.player_name_input.setMinimumWidth(170)  # Increased width for better visibility
+        self.player_name_input.setStyleSheet("""
+            background-color: #222222;
+            color: white;
+            border: 1px solid #555555;
+            border-radius: 4px;
+            padding: 8px 12px;
+            font-size: 14px;
+        """)  # Enhanced styling
         player_layout.addWidget(self.player_name_input)
         
-        # Home city display with black background and white text styling
+        # Home city display with improved styling
         home_city_container = QFrame()
         home_city_container.setStyleSheet("""
             background-color: #222222;
             color: white;
             border: 1px solid #444444;
-            border-radius: 4px;
+            border-radius: 6px;
             padding: 5px 10px;
         """)
         home_city_layout = QHBoxLayout(home_city_container)
-        home_city_layout.setContentsMargins(8, 5, 8, 5)
+        home_city_layout.setContentsMargins(10, 6, 10, 6)  # Increased padding
         
-        # Replace Unicode emoji with more compatible text icon
+        # Home city label with improved styling
         home_icon_label = QLabel("HOME")
-        home_icon_label.setStyleSheet("font-size: 14px; font-weight: bold; color: white;")
+        home_icon_label.setStyleSheet("font-size: 15px; font-weight: bold; color: white;")  # Larger font
         home_city_layout.addWidget(home_icon_label)
         
         self.home_city_label = QLabel("")
         self.home_city_label.setStyleSheet("""
             color: white; 
             font-weight: bold; 
-            font-size: 14px;
-        """)
+            font-size: 15px;
+        """)  # Larger font
         home_city_layout.addWidget(self.home_city_label)
         
         player_layout.addWidget(home_city_container)
         
         player_layout.addStretch(1)  # Push everything to the left
         
-        # High Scores button with black and white styling
+        # High Scores button with enhanced styling
         high_scores_button = QPushButton("High Scores")
-        high_scores_button.setStyleSheet(AppStyles.get_button_stylesheet())
+        high_scores_button.setStyleSheet("""
+            QPushButton {
+                background-color: #222222;
+                color: white;
+                border: 1px solid #444444;
+                border-radius: 5px;
+                padding: 10px 18px;
+                font-size: 14px;
+            }
+            QPushButton:hover {
+                background-color: #444444;
+            }
+            QPushButton:pressed {
+                background-color: #666666;
+            }
+        """)
         high_scores_button.clicked.connect(self.view_high_scores)
         player_layout.addWidget(high_scores_button)
         
-        # Start button with black and white styling
+        # Start button with enhanced styling
         start_button = QPushButton("Start New Game")
-        start_button.setStyleSheet(AppStyles.get_button_stylesheet())
+        start_button.setStyleSheet("""
+            QPushButton {
+                background-color: #222222;
+                color: white;
+                border: 1px solid #444444;
+                border-radius: 5px;
+                padding: 10px 18px;
+                font-weight: bold;
+                font-size: 14px;
+            }
+            QPushButton:hover {
+                background-color: #444444;
+            }
+            QPushButton:pressed {
+                background-color: #666666;
+            }
+        """)
         start_button.clicked.connect(self.start_new_game)
         player_layout.addWidget(start_button)
         
