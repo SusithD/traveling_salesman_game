@@ -1,778 +1,217 @@
 """
-Main game window for the Traveling Salesman Problem game (PyQt5 Version)
+Main game window for the Traveling Salesman Problem game
 """
 import logging
-import traceback
-from PyQt5.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QTabWidget,
-    QLabel, QLineEdit, QPushButton, QMessageBox, QMenu, QMenuBar,
-    QAction, QDialog, QTextBrowser, QScrollArea, QFrame
-)
-from PyQt5.QtGui import QFont
+import sys
+import os
+from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget
 from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QIcon
 
-from core.game_state import GameState
-from core.city_map import CityMap
-from database.db_manager import DatabaseManager
-from gui.city_selection_qt import CitySelectionFrameQt
-from gui.results_display_qt import ResultsDisplayFrameQt
-from utils.styling import AppStyles
+from gui.game_flow_manager import GameFlowManager
 
-# Configure logging
+# Setup logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    filename='tsp_game.log',
+    filemode='a'
+)
 logger = logging.getLogger("GameWindow")
 
-class StyledFrame(QFrame):
-    """Custom frame with black background and white text styling for containers"""
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setStyleSheet(AppStyles.get_styled_frame_stylesheet())
-        self.setFrameShape(QFrame.StyledPanel)
-
-class GameWindowQt(QMainWindow):
+class GameWindow(QMainWindow):
+    """
+    Main window for the Traveling Salesman Problem game
+    """
     def __init__(self):
-        logger.info("Initializing GameWindowQt")
-        try:
-            super().__init__()
-            
-            # Set up the main window
-            self.setWindowTitle("Traveling Salesman Problem Game")
-            self.resize(1200, 800)  # Increased window size to accommodate enhanced UI
-            
-            # Set application-wide stylesheet for black background and white text
-            self.setStyleSheet(AppStyles.get_dark_theme_stylesheet())
-            
-            self.db_manager = DatabaseManager()
-            self.game_state = GameState()
-            self.city_map = CityMap()
-            
-            # Initialize the city map with cities and distances
-            logger.debug("Generating cities and distances")
-            self.city_map.generate_cities_and_distances()
-            
-            logger.debug("Setting city map in game state")
-            self.game_state.set_city_map(self.city_map)
-            
-            logger.debug("Selecting home city")
-            self.game_state.home_city = self.city_map.select_random_home_city()
-            logger.info(f"Home city selected: {self.game_state.home_city}")
-            
-            # Create the menu
-            self.create_menu()
-            
-            # Set up the central widget with a scroll area for the entire content
-            self.central_widget = QWidget()
-            self.setCentralWidget(self.central_widget)
-            
-            # Create main vertical layout for central widget
-            outer_layout = QVBoxLayout(self.central_widget)
-            outer_layout.setContentsMargins(0, 0, 0, 0)
-            outer_layout.setSpacing(0)
-            
-            # Create scroll area for main content with improved styling
-            self.scroll_area = QScrollArea()
-            self.scroll_area.setWidgetResizable(True)
-            self.scroll_area.setStyleSheet("""
-                QScrollArea {
-                    border: none;
-                    background-color: transparent;
-                }
-                QScrollBar:vertical {
-                    border: none;
-                    background: #222222;
-                    width: 14px;
-                    margin: 0px;
-                }
-                QScrollBar::handle:vertical {
-                    background: #555555;
-                    min-height: 20px;
-                    border-radius: 7px;
-                }
-                QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
-                    height: 0px;
-                }
-                QScrollBar:horizontal {
-                    border: none;
-                    background: #222222;
-                    height: 14px;
-                    margin: 0px;
-                }
-                QScrollBar::handle:horizontal {
-                    background: #555555;
-                    min-width: 20px;
-                    border-radius: 7px;
-                }
-                QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
-                    width: 0px;
-                }
-            """)
-            
-            # Create a container widget for all content that will be placed in the scroll area
-            self.content_widget = QWidget()
-            self.main_layout = QVBoxLayout(self.content_widget)
-            self.main_layout.setContentsMargins(20, 20, 20, 20)  # Increased padding for better clarity
-            self.main_layout.setSpacing(25)  # Increased spacing between sections for better visual separation
-            
-            # Set the content widget as the scroll area's widget
-            self.scroll_area.setWidget(self.content_widget)
-            outer_layout.addWidget(self.scroll_area)
-            
-            # Player info section
-            self.create_player_info_section()
-            
-            # Create frames
-            self.create_frames()
-            
-            # Initialize game display
-            self.initialize_game_display()
-            
-            logger.info("GameWindowQt initialization complete")
-        except Exception as e:
-            logger.error(f"Error in GameWindowQt initialization: {str(e)}")
-            logger.error(traceback.format_exc())
-            QMessageBox.critical(None, "Initialization Error", f"An error occurred during initialization: {str(e)}")
-            raise
+        super().__init__()
+        
+        # Set application properties
+        self.setWindowTitle("Traveling Salesman Game")
+        self.setMinimumSize(1000, 700)
+        
+        # Set up the window
+        self.setup_ui()
+        
+        # Center the window on the screen
+        self.center_on_screen()
+        
+        # Show the window
+        self.show()
+    
+    def setup_ui(self):
+        """Setup the UI components"""
+        # Create central widget and layout
+        central_widget = QWidget(self)
+        self.setCentralWidget(central_widget)
+        
+        main_layout = QVBoxLayout(central_widget)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+        
+        # Create game flow manager
+        self.game_flow_manager = GameFlowManager(self)
+        
+        # Add the stacked widget from the flow manager to the main layout
+        main_layout.addWidget(self.game_flow_manager.get_widget())
+    
+    def center_on_screen(self):
+        """Center the window on the screen"""
+        frame_geometry = self.frameGeometry()
+        screen_center = QApplication.desktop().availableGeometry().center()
+        frame_geometry.moveCenter(screen_center)
+        self.move(frame_geometry.topLeft())
+    
+    def run(self):
+        """Run the application"""
+        return QApplication.exec_()
 
-    def create_menu(self):
-        """Create the main menu"""
-        logger.debug("Creating menu")
-        menubar = self.menuBar()
-        
-        # Game menu
-        game_menu = menubar.addMenu("Game")
-        
-        new_game_action = QAction("New Game", self)
-        new_game_action.triggered.connect(self.start_new_game)
-        game_menu.addAction(new_game_action)
-        
-        high_scores_action = QAction("View High Scores", self)
-        high_scores_action.triggered.connect(self.view_high_scores)
-        game_menu.addAction(high_scores_action)
-        
-        game_menu.addSeparator()
-        
-        exit_action = QAction("Exit", self)
-        exit_action.triggered.connect(self.close)
-        game_menu.addAction(exit_action)
-        
-        # Help menu
-        help_menu = menubar.addMenu("Help")
-        
-        rules_action = QAction("Rules", self)
-        rules_action.triggered.connect(self.show_rules)
-        help_menu.addAction(rules_action)
-        
-        about_action = QAction("About", self)
-        about_action.triggered.connect(self.show_about)
-        help_menu.addAction(about_action)
 
-    def create_player_info_section(self):
-        """Create the player information section with black background and white text styling"""
-        logger.debug("Creating player info section")
-        
-        # Create a styled container for player info
-        player_container = StyledFrame()
-        player_layout = QHBoxLayout(player_container)
-        player_layout.setContentsMargins(18, 18, 18, 18)  # Increased padding
-        player_layout.setSpacing(18)  # More spacing for better visual separation
-        
-        # Player name section with styled label
-        player_label = QLabel("Player:")
-        player_label.setStyleSheet("font-weight: bold; color: white; font-size: 15px;")  # Increased font size
-        player_layout.addWidget(player_label)
-        
-        self.player_name_input = QLineEdit("Player")
-        self.player_name_input.setMinimumWidth(170)  # Increased width for better visibility
-        self.player_name_input.setStyleSheet("""
-            background-color: #222222;
-            color: white;
-            border: 1px solid #555555;
-            border-radius: 4px;
-            padding: 8px 12px;
-            font-size: 14px;
-        """)  # Enhanced styling
-        player_layout.addWidget(self.player_name_input)
-        
-        # Home city display with improved styling
-        home_city_container = QFrame()
-        home_city_container.setStyleSheet("""
-            background-color: #222222;
-            color: white;
-            border: 1px solid #444444;
-            border-radius: 6px;
-            padding: 5px 10px;
-        """)
-        home_city_layout = QHBoxLayout(home_city_container)
-        home_city_layout.setContentsMargins(10, 6, 10, 6)  # Increased padding
-        
-        # Home city label with improved styling
-        home_icon_label = QLabel("HOME")
-        home_icon_label.setStyleSheet("font-size: 15px; font-weight: bold; color: white;")  # Larger font
-        home_city_layout.addWidget(home_icon_label)
-        
-        self.home_city_label = QLabel("")
-        self.home_city_label.setStyleSheet("""
-            color: white; 
-            font-weight: bold; 
-            font-size: 15px;
-        """)  # Larger font
-        home_city_layout.addWidget(self.home_city_label)
-        
-        player_layout.addWidget(home_city_container)
-        
-        player_layout.addStretch(1)  # Push everything to the left
-        
-        # High Scores button with enhanced styling
-        high_scores_button = QPushButton("High Scores")
-        high_scores_button.setStyleSheet("""
-            QPushButton {
-                background-color: #222222;
-                color: white;
-                border: 1px solid #444444;
-                border-radius: 5px;
-                padding: 10px 18px;
-                font-size: 14px;
-            }
-            QPushButton:hover {
-                background-color: #444444;
-            }
-            QPushButton:pressed {
-                background-color: #666666;
-            }
-        """)
-        high_scores_button.clicked.connect(self.view_high_scores)
-        player_layout.addWidget(high_scores_button)
-        
-        # Start button with enhanced styling
-        start_button = QPushButton("Start New Game")
-        start_button.setStyleSheet("""
-            QPushButton {
-                background-color: #222222;
-                color: white;
-                border: 1px solid #444444;
-                border-radius: 5px;
-                padding: 10px 18px;
-                font-weight: bold;
-                font-size: 14px;
-            }
-            QPushButton:hover {
-                background-color: #444444;
-            }
-            QPushButton:pressed {
-                background-color: #666666;
-            }
-        """)
-        start_button.clicked.connect(self.start_new_game)
-        player_layout.addWidget(start_button)
-        
-        # Add the container to the main layout
-        self.main_layout.addWidget(player_container)
-        
-        # Update the game state with the default player name
-        self.game_state.player_name = self.player_name_input.text()
+def run_application():
+    """Run the TSP game application"""
+    # Create Qt application
+    app = QApplication(sys.argv)
+    app.setStyle('Fusion')  # Use Fusion style for consistent look across platforms
+    
+    # Set application stylesheet for dark theme
+    stylesheet = """
+    QWidget {
+        background-color: #1e1e1e;
+        color: #ffffff;
+        font-family: 'Segoe UI', Arial, sans-serif;
+    }
+    
+    QLabel {
+        color: #ffffff;
+    }
+    
+    QPushButton {
+        background-color: #3498db;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+    }
+    
+    QPushButton:hover {
+        background-color: #2980b9;
+    }
+    
+    QPushButton:pressed {
+        background-color: #1c5a85;
+    }
+    
+    QLineEdit, QTextEdit, QPlainTextEdit {
+        background-color: #333333;
+        color: #ffffff;
+        border: 1px solid #555555;
+        padding: 5px;
+        border-radius: 3px;
+    }
+    
+    QComboBox {
+        background-color: #333333;
+        color: #ffffff;
+        border: 1px solid #555555;
+        padding: 5px;
+        border-radius: 3px;
+    }
+    
+    QComboBox::drop-down {
+        border: none;
+        padding-right: 10px;
+    }
+    
+    QComboBox QAbstractItemView {
+        background-color: #333333;
+        color: #ffffff;
+        selection-background-color: #3498db;
+        selection-color: #ffffff;
+    }
+    
+    QTableWidget {
+        background-color: #333333;
+        color: #ffffff;
+        gridline-color: #555555;
+    }
+    
+    QHeaderView::section {
+        background-color: #2c2c2c;
+        color: #ffffff;
+        padding: 5px;
+        border: 1px solid #555555;
+    }
+    
+    QTabWidget::pane {
+        border: 1px solid #555555;
+    }
+    
+    QTabBar::tab {
+        background-color: #2c2c2c;
+        color: #aaaaaa;
+        padding: 8px 12px;
+        border: 1px solid #555555;
+        border-bottom: none;
+        margin-right: 2px;
+    }
+    
+    QTabBar::tab:selected {
+        background-color: #3498db;
+        color: #ffffff;
+    }
+    
+    QTabBar::tab:hover:!selected {
+        background-color: #3c3c3c;
+    }
+    
+    QScrollBar:vertical {
+        background: #2c2c2c;
+        width: 12px;
+        border-radius: 6px;
+    }
+    
+    QScrollBar::handle:vertical {
+        background: #555555;
+        min-height: 20px;
+        border-radius: 6px;
+    }
+    
+    QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+        height: 0px;
+    }
+    
+    QScrollBar:horizontal {
+        background: #2c2c2c;
+        height: 12px;
+        border-radius: 6px;
+    }
+    
+    QScrollBar::handle:horizontal {
+        background: #555555;
+        min-width: 20px;
+        border-radius: 6px;
+    }
+    
+    QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+        width: 0px;
+    }
+    
+    QProgressBar {
+        border: 1px solid #555555;
+        border-radius: 3px;
+        background: #333333;
+        text-align: center;
+    }
+    
+    QProgressBar::chunk {
+        background-color: #3498db;
+    }
+    """
+    app.setStyleSheet(stylesheet)
+    
+    # Create and run the main window
+    window = GameWindow()
+    return app.exec_()
 
-    def create_frames(self):
-        """Create the main frames for the application"""
-        logger.debug("Creating frames")
-        
-        # Create the city selection frame
-        self.city_selection = CitySelectionFrameQt(self.game_state)
-        self.main_layout.addWidget(self.city_selection)
-        
-        # Create the results display frame
-        self.results_display = ResultsDisplayFrameQt(self.game_state, self.db_manager)
-        self.main_layout.addWidget(self.results_display)
-
-    def initialize_game_display(self):
-        """Initialize the game display with home city information"""
-        if self.game_state and self.game_state.home_city:
-            self.home_city_label.setText(f"Home city: {self.game_state.home_city}")
-        else:
-            logger.warning("initialize_game_display: No home city set")
-            self.home_city_label.setText("Home city: Not set")
-
-    def start_new_game(self):
-        """Start a new game round"""
-        logger.debug("Starting new game")
-        player_name = self.player_name_input.text().strip()
-        
-        if not player_name:
-            QMessageBox.critical(self, "Error", "Please enter your name first!")
-            return
-        
-        self.game_state.player_name = player_name
-        self.city_map.generate_cities_and_distances()
-        self.game_state.set_city_map(self.city_map)
-        self.game_state.home_city = self.city_map.select_random_home_city()
-        
-        self.city_selection.update_cities_display()
-        self.results_display.clear_results()
-        
-        self.home_city_label.setText(f"Home city: {self.game_state.home_city}")
-        
-        QMessageBox.information(self, "New Game", f"A new game has started!\nYour home city is {self.game_state.home_city}")
-
-    def view_high_scores(self):
-        """Show high scores from the database with enhanced statistics in black background with white text"""
-        logger.debug("Viewing high scores")
-        high_scores = self.db_manager.get_high_scores()
-        
-        if not high_scores:
-            QMessageBox.information(self, "High Scores", "No high scores yet!")
-            return
-            
-        dialog = QDialog(self)
-        dialog.setWindowTitle("High Scores & Statistics")
-        dialog.resize(800, 600)
-        dialog.setStyleSheet(AppStyles.get_dialog_stylesheet())
-        layout = QVBoxLayout(dialog)
-        
-        # Add a title with bold styling
-        title_label = QLabel("High Scores & Statistics")
-        title_label.setStyleSheet("font-size: 18px; font-weight: bold; color: white;")
-        title_label.setAlignment(Qt.AlignCenter)
-        layout.addWidget(title_label)
-        
-        scores_text = QTextBrowser(dialog)
-        scores_text.setOpenExternalLinks(False)
-        scores_text.setStyleSheet("""
-            background-color: black;
-            color: white;
-            border: 1px solid #444;
-        """)
-        
-        # Calculate statistics from high scores
-        total_games = len(high_scores)
-        algorithms_used = {}
-        shortest_route = float('inf')
-        longest_route = 0
-        best_player = {}
-        total_route_length = 0
-        cities_frequency = {}
-        algorithm_avg_lengths = {"Brute Force": [], "Nearest Neighbor": [], "Dynamic Programming": []}
-        
-        for score in high_scores:
-            player, home_city, cities_visited, route_length, algorithm, time = score
-            
-            # Convert to appropriate types
-            cities_visited = int(cities_visited)
-            route_length = float(route_length)
-            time = float(time)
-            
-            # Algorithm statistics
-            if algorithm not in algorithms_used:
-                algorithms_used[algorithm] = 0
-            algorithms_used[algorithm] += 1
-            
-            # Track algorithm performance
-            if algorithm in algorithm_avg_lengths:
-                algorithm_avg_lengths[algorithm].append(route_length)
-            
-            # Route length statistics
-            if route_length < shortest_route:
-                shortest_route = route_length
-                best_player = {'name': player, 'route': route_length, 'cities': cities_visited, 'algorithm': algorithm}
-            
-            if route_length > longest_route:
-                longest_route = route_length
-            
-            total_route_length += route_length
-            
-            # Track city popularity
-            if home_city not in cities_frequency:
-                cities_frequency[home_city] = 0
-            cities_frequency[home_city] += 1
-        
-        # Calculate algorithm averages
-        algorithm_averages = {}
-        for algo, lengths in algorithm_avg_lengths.items():
-            if lengths:
-                algorithm_averages[algo] = sum(lengths) / len(lengths)
-        
-        # Find most popular algorithm
-        most_popular_algorithm = max(algorithms_used.items(), key=lambda x: x[1])[0]
-        average_route_length = total_route_length / total_games
-        
-        # CSS for black background and white text styling
-        css = """
-        <style>
-            body { 
-                font-family: 'Segoe UI', Arial, sans-serif; 
-                margin: 0; 
-                padding: 10px; 
-                background-color: black; 
-                color: white; 
-            }
-            h2 { 
-                color: white; 
-                text-align: center; 
-                margin-bottom: 5px; 
-                font-size: 22px;
-            }
-            h3 { 
-                color: white; 
-                margin-top: 20px; 
-                margin-bottom: 10px; 
-                border-bottom: 2px solid white; 
-                padding-bottom: 5px; 
-                font-size: 18px;
-            }
-            .stats-container { 
-                display: flex; 
-                flex-wrap: wrap; 
-                justify-content: space-between; 
-                margin-bottom: 20px; 
-            }
-            .stat-box { 
-                background-color: #222; 
-                border-radius: 8px; 
-                border: 1px solid #444; 
-                padding: 12px; 
-                width: 48%; 
-                margin-bottom: 15px; 
-            }
-            .stat-title { 
-                font-weight: bold; 
-                color: white; 
-                margin-bottom: 5px; 
-            }
-            .stat-value { 
-                font-size: 18px; 
-                color: white; 
-            }
-            .stat-extra { 
-                font-size: 12px; 
-                color: #ccc; 
-            }
-            table { 
-                width: 100%; 
-                border-collapse: collapse; 
-                margin-top: 15px; 
-                border: 1px solid #444;
-            }
-            th { 
-                background-color: #333; 
-                color: white; 
-                text-align: left; 
-                padding: 12px; 
-                border: 1px solid #444;
-            }
-            td { 
-                background-color: #111; 
-                color: white;
-                padding: 10px; 
-                border-bottom: 1px solid #333; 
-                border: 1px solid #333;
-            }
-            tr:nth-child(even) td { 
-                background-color: #222; 
-            }
-            tr:hover td { 
-                background-color: #333; 
-            }
-            .highlight-row td { 
-                background-color: #444; 
-                font-weight: bold; 
-            }
-            .bar-background { 
-                background-color: #333; 
-                border-radius: 4px; 
-                height: 20px; 
-            }
-            .bar-fill { 
-                background-color: white; 
-                height: 100%; 
-                border-radius: 4px; 
-            }
-            .stats-grid { 
-                display: grid; 
-                grid-template-columns: repeat(2, 1fr); 
-                gap: 20px; 
-                margin-top: 20px; 
-            }
-            .chart-container { 
-                border: 1px solid #444; 
-                border-radius: 8px; 
-                padding: 15px; 
-                margin-bottom: 20px; 
-                background-color: #222;
-            }
-            .chart-title { 
-                font-weight: bold; 
-                margin-bottom: 10px; 
-                color: white;
-            }
-            .performance-box { 
-                border: 1px solid #444; 
-                padding: 10px; 
-                margin-top: 15px; 
-                background-color: #222;
-            }
-            .performance-title { 
-                font-weight: bold; 
-                border-bottom: 1px solid #444; 
-                padding-bottom: 5px; 
-                margin-bottom: 10px; 
-                color: white;
-            }
-            p, span, div {
-                color: white;
-            }
-        </style>
-        """
-        
-        # Start building content with enhanced statistics
-        html_content = css + "<h2>TSP Game Statistics</h2>"
-        
-        # Statistics boxes
-        html_content += "<div class='stats-container'>"
-        
-        # Best player box
-        html_content += "<div class='stat-box'>"
-        html_content += "<div class='stat-title'>Best Player</div>"
-        html_content += f"<div class='stat-value'>{best_player['name']}</div>"
-        html_content += f"<div class='stat-extra'>Route: {best_player['route']:.2f} km with {best_player['cities']} cities using {best_player['algorithm']}</div>"
-        html_content += "</div>"
-        
-        # Total games box
-        html_content += "<div class='stat-box'>"
-        html_content += "<div class='stat-title'>Total Games Played</div>"
-        html_content += f"<div class='stat-value'>{total_games}</div>"
-        html_content += "</div>"
-        
-        # Best algorithm box
-        html_content += "<div class='stat-box'>"
-        html_content += "<div class='stat-title'>Most Popular Algorithm</div>"
-        html_content += f"<div class='stat-value'>{most_popular_algorithm}</div>"
-        html_content += f"<div class='stat-extra'>Used {algorithms_used[most_popular_algorithm]} times</div>"
-        html_content += "</div>"
-        
-        # Route statistics box
-        html_content += "<div class='stat-box'>"
-        html_content += "<div class='stat-title'>Route Statistics</div>"
-        html_content += f"<div class='stat-value'>{average_route_length:.2f} km</div>"
-        html_content += f"<div class='stat-extra'>Average route length (Shortest: {shortest_route:.2f} km, Longest: {longest_route:.2f} km)</div>"
-        html_content += "</div>"
-        html_content += "</div>"  # End stats-container
-        
-        # Algorithm Performance Comparison
-        html_content += "<div class='chart-container'>"
-        html_content += "<div class='chart-title'>Algorithm Performance Comparison</div>"
-        
-        for algo, avg in sorted(algorithm_averages.items(), key=lambda x: x[1]):
-            if algorithm_averages:
-                # Calculate percentage relative to best algorithm
-                min_avg = min(algorithm_averages.values())
-                percentage = (avg / min_avg) * 100 - 100  # How much worse than the best
-                
-                html_content += f"<div style='margin-bottom: 15px;'>"
-                html_content += f"<div style='display: flex; justify-content: space-between;'>"
-                html_content += f"<span>{algo}</span><span>Avg: {avg:.2f} km</span>"
-                html_content += f"</div>"
-                
-                # Bar representation of relative performance (shorter is better)
-                bar_width = max(5, min(100, percentage * 2))  # Scale for visual purposes
-                html_content += f"<div class='bar-background'>"
-                html_content += f"<div class='bar-fill' style='width: {bar_width}%;'></div>"
-                html_content += f"</div>"
-                
-                if percentage == 0:
-                    html_content += f"<div style='font-size: 12px; text-align: right; color: #ccc;'>Best performing algorithm</div>"
-                else:
-                    html_content += f"<div style='font-size: 12px; text-align: right; color: #ccc;'>{percentage:.1f}% longer routes than best algorithm</div>"
-                
-                html_content += f"</div>"
-        
-        html_content += "</div>"
-                
-        # High scores table with enhanced styling
-        html_content += "<h3>High Scores Leaderboard</h3>"
-        html_content += "<table>"
-        html_content += "<tr><th>Player</th><th>Home City</th><th>Cities</th><th>Route Length</th><th>Algorithm</th><th>Time (ms)</th></tr>"
-        
-        # Sort high scores by route length (ascending)
-        sorted_scores = sorted(high_scores, key=lambda x: float(x[3]))
-        
-        for i, score in enumerate(sorted_scores):
-            player, home_city, cities_visited, route_length, algorithm, time = score
-            
-            # Highlight the top 3 scores
-            if i < 3:
-                html_content += "<tr class='highlight-row'>"
-            else:
-                html_content += "<tr>"
-                
-            for item in score:
-                # Format numbers to 2 decimal places if they're route length or time
-                if isinstance(item, (int, float)) or (isinstance(item, str) and item.replace('.', '', 1).isdigit()):
-                    try:
-                        value = float(item)
-                        if value == int(value):
-                            html_content += f"<td>{int(value)}</td>"
-                        else:
-                            html_content += f"<td>{value:.2f}</td>"
-                    except ValueError:
-                        html_content += f"<td>{item}</td>"
-                else:
-                    html_content += f"<td>{item}</td>"
-            html_content += "</tr>"
-            
-        html_content += "</table>"
-        
-        # Algorithm usage chart
-        html_content += "<h3>Algorithm Usage Distribution</h3>"
-        html_content += "<div class='chart-container'>"
-        for algo, count in algorithms_used.items():
-            percentage = (count / total_games) * 100
-            bar_width = percentage  # Direct percentage as width
-            html_content += f"<div style='margin-bottom: 15px;'>"
-            html_content += f"<div style='display: flex; justify-content: space-between;'>"
-            html_content += f"<span><b>{algo}</b></span><span>{percentage:.1f}% ({count} games)</span>"
-            html_content += f"</div>"
-            html_content += f"<div class='bar-background'>"
-            html_content += f"<div class='bar-fill' style='width: {bar_width}%;'></div>"
-            html_content += f"</div>"
-            html_content += f"</div>"
-        html_content += "</div>"
-        
-        # Cities frequency if there are interesting patterns
-        if cities_frequency and len(cities_frequency) > 1:
-            html_content += "<h3>Most Frequent Home Cities</h3>"
-            html_content += "<div class='chart-container'>"
-            
-            # Get the top 5 cities
-            top_cities = sorted(cities_frequency.items(), key=lambda x: x[1], reverse=True)[:5]
-            max_freq = max(cities_frequency.values()) if cities_frequency else 1
-            
-            for city, freq in top_cities:
-                percentage = (freq / total_games) * 100
-                bar_width = (freq / max_freq) * 100  # Relative to max frequency
-                
-                html_content += f"<div style='margin-bottom: 15px;'>"
-                html_content += f"<div style='display: flex; justify-content: space-between;'>"
-                html_content += f"<span>{city}</span><span>{percentage:.1f}% ({freq} games)</span>"
-                html_content += f"</div>"
-                html_content += f"<div class='bar-background'>"
-                html_content += f"<div class='bar-fill' style='width: {bar_width}%;'></div>"
-                html_content += f"</div>"
-                html_content += f"</div>"
-            
-            html_content += "</div>"
-        
-        scores_text.setHtml(html_content)
-        layout.addWidget(scores_text)
-        
-        # Button layout at the bottom
-        button_layout = QHBoxLayout()
-        
-        close_button = QPushButton("Close", dialog)
-        close_button.clicked.connect(dialog.close)
-        close_button.setStyleSheet("background-color: #222222; color: white; padding: 8px 16px; border-radius: 4px; font-weight: bold;")
-        button_layout.addWidget(close_button)
-        
-        layout.addLayout(button_layout)
-        
-        dialog.exec_()
-
-    def show_rules(self):
-        """Display game rules with proper dark theme styling"""
-        logger.debug("Showing rules")
-        
-        # Create a custom dialog for better styling control
-        rules_dialog = QDialog(self)
-        rules_dialog.setWindowTitle("Game Rules")
-        rules_dialog.setMinimumWidth(500)
-        rules_dialog.setStyleSheet(AppStyles.get_dialog_stylesheet())
-        
-        layout = QVBoxLayout(rules_dialog)
-        
-        # Create a scroll area for the rules
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setFrameShape(QFrame.NoFrame)
-        scroll_area.setStyleSheet("""
-            background-color: black;
-            border: none;
-        """)
-        
-        # Container for the rules text
-        rules_container = QWidget()
-        rules_layout = QVBoxLayout(rules_container)
-        
-        # Title with enhanced styling
-        title = QLabel("<h2 style='color:white;'>Traveling Salesman Problem Game Rules</h2>")
-        title.setAlignment(Qt.AlignCenter)
-        rules_layout.addWidget(title)
-        
-        # Rules content with styled HTML
-        rules_content = QLabel("""
-        <div style='color:white; font-size:14px; margin:10px;'>
-            <p style='color:white;'>The Traveling Salesman Problem (TSP) is a classic algorithmic challenge:</p>
-            
-            <p style='color:white; margin-left:15px;'><i>Given a list of cities and the distances between them, 
-            what is the shortest possible route that visits each city exactly once and returns to the origin city?</i></p>
-            
-            <h3 style='color:white; margin-top:20px;'>Game Rules:</h3>
-            
-            <ol style='color:white;'>
-                <li>You start at a randomly assigned home city.</li>
-                <li>Select additional cities you wish to visit by checking the boxes.</li>
-                <li>Before calculating routes, you'll be asked to predict which algorithm will find the shortest path.</li>
-                <li>The game will calculate the optimal route using three different algorithms:
-                    <ul>
-                        <li><strong>Brute Force</strong>: Checks all possible routes (exact but slow for many cities)</li>
-                        <li><strong>Nearest Neighbor</strong>: Greedily selects the closest unvisited city (fast but approximate)</li>
-                        <li><strong>Dynamic Programming</strong>: Uses optimal substructure to find the best solution (balance of accuracy and speed)</li>
-                    </ul>
-                </li>
-                <li>The results will show you the optimal route, distance, and time taken for each algorithm.</li>
-                <li>Your score will be saved to the high scores table.</li>
-            </ol>
-            
-            <h3 style='color:white; margin-top:20px;'>Tips:</h3>
-            
-            <ul style='color:white;'>
-                <li>For small numbers of cities (up to 10), Brute Force will find the exact optimal route.</li>
-                <li>For larger numbers of cities, Dynamic Programming offers a good balance of speed and accuracy.</li>
-                <li>Nearest Neighbor is the fastest but may not find the optimal route.</li>
-                <li>Try to predict which algorithm will perform best for different numbers of cities!</li>
-            </ul>
-        </div>
-        """)
-        rules_content.setWordWrap(True)
-        rules_content.setTextFormat(Qt.RichText)
-        rules_layout.addWidget(rules_content)
-        
-        scroll_area.setWidget(rules_container)
-        layout.addWidget(scroll_area)
-        
-        # Close button
-        close_button = QPushButton("Close", rules_dialog)
-        close_button.clicked.connect(rules_dialog.close)
-        close_button.setStyleSheet("""
-            QPushButton {
-                background-color: #222222;
-                color: white;
-                border: 1px solid #444444;
-                border-radius: 4px;
-                padding: 6px 12px;
-                min-width: 80px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #444444;
-            }
-        """)
-        button_layout = QHBoxLayout()
-        button_layout.addStretch()
-        button_layout.addWidget(close_button)
-        layout.addLayout(button_layout)
-        
-        rules_dialog.exec_()
-        
-    def show_about(self):
-        """Display information about the application"""
-        QMessageBox.about(self, "About TSP Game", 
-            """<h3>Traveling Salesman Problem Game</h3>
-            <p>An educational game that demonstrates different algorithms for solving the TSP.</p>
-            <p>Version 1.1</p>
-            <p>© 2025 Algorithm Games</p>""")
+if __name__ == "__main__":
+    sys.exit(run_application())

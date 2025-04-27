@@ -11,6 +11,15 @@ class CityMap:
                       'City F', 'City G', 'City H', 'City I', 'City J']
         self.distances = {}
         self.city_positions = {}  # For visualization
+    
+    def add_city(self, city):
+        """Add a city to the map if it doesn't already exist"""
+        if city not in self.cities:
+            self.cities.append(city)
+            # Generate random positions for visualization
+            self.city_positions[city] = (random.uniform(0, 100), random.uniform(0, 100))
+            return True
+        return False
         
     def generate_cities_and_distances(self):
         """Generate random distances between cities"""
@@ -70,3 +79,14 @@ class CityMap:
             return self.distances[key]
         
         raise ValueError(f"No distance found between {city1} and {city2}")
+        
+    def add_distance(self, city1, city2, distance):
+        """Add a distance between two cities"""
+        if city1 not in self.cities:
+            self.add_city(city1)
+        if city2 not in self.cities:
+            self.add_city(city2)
+            
+        # Store distance (both directions)
+        self.distances[(city1, city2)] = distance
+        self.distances[(city2, city1)] = distance

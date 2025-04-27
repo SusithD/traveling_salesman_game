@@ -1,218 +1,127 @@
 """
-Route calculators using different algorithms for the Traveling Salesman Problem
+Route calculator for the Traveling Salesman Problem
+Runs various algorithms and measures their performance
 """
-import itertools
-from utils.validation import validate_route
+import logging
+import time
+from typing import Dict, List, Tuple, Any
+import numpy as np
+
+logger = logging.getLogger("RouteCalculator")
 
 class RouteCalculator:
-    def brute_force(self, cities, distances, home_city):
-        """
-        Find the shortest route using brute force approach.
-        This tries all possible permutations of cities.
-        
-        Parameters:
-        - cities: List of cities to visit
-        - distances: Dictionary of distances between cities
-        - home_city: Starting and ending city
-        
-        Returns:
-        - Tuple of (best_route, best_route_length)
-        """
-        # Get cities to visit (excluding home city)
-        cities_to_visit = [city for city in cities if city != home_city]
-        
-        # Best route found so far
-        best_route = None
-        best_length = float('inf')
-        
-        # Try all permutations of cities
-        for perm in itertools.permutations(cities_to_visit):
-            # Create a complete route starting and ending at home
-            route = [home_city] + list(perm) + [home_city]
-            
-            # Calculate the total distance
-            total_distance = 0
-            for i in range(len(route) - 1):
-                city1, city2 = route[i], route[i+1]
-                distance_key = (city1, city2)
-                reverse_key = (city2, city1)
-                
-                if distance_key in distances:
-                    total_distance += distances[distance_key]
-                elif reverse_key in distances:
-                    total_distance += distances[reverse_key]
-                else:
-                    raise ValueError(f"No distance found between {city1} and {city2}")
-            
-            # Update best route if this one is shorter
-            if total_distance < best_length:
-                best_length = total_distance
-                best_route = route
-        
-        # Validate the route before returning
-        validate_route(best_route, home_city)
-        
-        return best_route, best_length
+    """
+    Calculates routes using different algorithms and measures their performance
+    """
+    def __init__(self):
+        """Initialize the route calculator"""
+        pass
     
-    def nearest_neighbor(self, cities, distances, home_city):
+    def calculate_all_routes(self, cities: List[str], distances: np.ndarray, home_city: str) -> Dict[str, Dict[str, Any]]:
         """
-        Find a route using the nearest neighbor heuristic.
-        Always visits the closest unvisited city.
+        Calculate routes using all available algorithms
         
-        Parameters:
-        - cities: List of cities to visit
-        - distances: Dictionary of distances between cities
-        - home_city: Starting and ending city
+        Args:
+            cities: List of city names
+            distances: Distance matrix for the cities
+            home_city: The home city (starting and ending point)
         
         Returns:
-        - Tuple of (route, route_length)
+            Dictionary with results for each algorithm
         """
-        # Create a list of unvisited cities
-        unvisited = list(cities)
-        unvisited.remove(home_city)
+        results = {}
         
-        # Start at home city
-        current_city = home_city
-        route = [current_city]
-        total_distance = 0
+        # Import algorithms
+        from algorithms.brute_force import solve_tsp_brute_force
+        from algorithms.nearest_neighbor import solve_tsp_nearest_neighbor
+        from algorithms.dynamic_programming import solve_tsp_dynamic_programming
         
-        # Visit each city in order of closest distance
-        while unvisited:
-            # Find the closest city
-            closest_city = None
-            min_distance = float('inf')
-            
-            for city in unvisited:
-                distance_key = (current_city, city)
-                reverse_key = (city, current_city)
-                
-                if distance_key in distances:
-                    distance = distances[distance_key]
-                elif reverse_key in distances:
-                    distance = distances[reverse_key]
-                else:
-                    raise ValueError(f"No distance found between {current_city} and {city}")
-                
-                if distance < min_distance:
-                    min_distance = distance
-                    closest_city = city
-            
-            # Visit the closest city
-            route.append(closest_city)
-            total_distance += min_distance
-            current_city = closest_city
-            unvisited.remove(closest_city)
-        
-        # Return to home city
-        distance_key = (current_city, home_city)
-        reverse_key = (home_city, current_city)
-        
-        if distance_key in distances:
-            total_distance += distances[distance_key]
-        elif reverse_key in distances:
-            total_distance += distances[reverse_key]
-        else:
-            raise ValueError(f"No distance found between {current_city} and {home_city}")
-        
-        route.append(home_city)
-        
-        # Validate the route before returning
-        validate_route(route, home_city)
-        
-        return route, total_distance
-    
-    def dynamic_programming(self, cities, distances, home_city):
-        """
-        Find the shortest route using dynamic programming.
-        This uses the Held-Karp algorithm.
-        
-        Parameters:
-        - cities: List of cities to visit
-        - distances: Dictionary of distances between cities
-        - home_city: Starting and ending city
-        
-        Returns:
-        - Tuple of (route, route_length)
-        """
-        # Create a mapping of cities to indices
+        # Setup for algorithms
         city_indices = {city: i for i, city in enumerate(cities)}
-        index_to_city = {i: city for i, city in enumerate(cities)}
         home_idx = city_indices[home_city]
         
-        n = len(cities)
+        # Execute each algorithm and time it
+        try:
+            # Brute Force
+            start_time = time.time()
+            bf_route_indices, bf_distance = solve_tsp_brute_force(distances, home_idx)
+            bf_time = time.time() - start_time
+            bf_route = [cities[i] for i in bf_route_indices]
+            
+            results["Brute Force"] = {
+                "route": bf_route,
+                "length": bf_distance,
+                "time": bf_time
+            }
+            logger.info(f"Brute Force: distance={bf_distance:.2f}, time={bf_time:.6f}s")
+        except Exception as e:
+            logger.error(f"Error running Brute Force algorithm: {e}")
+            results["Brute Force"] = {
+                "route": ["Error"],
+                "length": float('inf'),
+                "time": 0
+            }
         
-        # Create a distance matrix
-        dist_matrix = [[0] * n for _ in range(n)]
-        for i, city1 in enumerate(cities):
-            for j, city2 in enumerate(cities):
-                if i == j:
-                    dist_matrix[i][j] = 0
-                else:
-                    distance_key = (city1, city2)
-                    reverse_key = (city2, city1)
-                    
-                    if distance_key in distances:
-                        dist_matrix[i][j] = distances[distance_key]
-                    elif reverse_key in distances:
-                        dist_matrix[i][j] = distances[reverse_key]
-                    else:
-                        raise ValueError(f"No distance found between {city1} and {city2}")
+        try:
+            # Nearest Neighbor
+            start_time = time.time()
+            nn_route_indices, nn_distance = solve_tsp_nearest_neighbor(distances, home_idx)
+            nn_time = time.time() - start_time
+            nn_route = [cities[i] for i in nn_route_indices]
+            
+            results["Nearest Neighbor"] = {
+                "route": nn_route,
+                "length": nn_distance,
+                "time": nn_time
+            }
+            logger.info(f"Nearest Neighbor: distance={nn_distance:.2f}, time={nn_time:.6f}s")
+        except Exception as e:
+            logger.error(f"Error running Nearest Neighbor algorithm: {e}")
+            results["Nearest Neighbor"] = {
+                "route": ["Error"],
+                "length": float('inf'),
+                "time": 0
+            }
         
-        # For very small number of cities, use brute force approach
-        if n <= 3:
-            return self.brute_force(cities, distances, home_city)
+        try:
+            # Dynamic Programming (Held-Karp algorithm)
+            start_time = time.time()
+            dp_route_indices, dp_distance = solve_tsp_dynamic_programming(distances, home_idx)
+            dp_time = time.time() - start_time
+            dp_route = [cities[i] for i in dp_route_indices]
             
-        # Use a simpler DP approach for better reliability
-        # We'll use a recursive approach with memoization
-        memo = {}
+            results["Dynamic Programming"] = {
+                "route": dp_route,
+                "length": dp_distance,
+                "time": dp_time
+            }
+            logger.info(f"Dynamic Programming: distance={dp_distance:.2f}, time={dp_time:.6f}s")
+        except Exception as e:
+            logger.error(f"Error running Dynamic Programming algorithm: {e}")
+            results["Dynamic Programming"] = {
+                "route": ["Error"],
+                "length": float('inf'),
+                "time": 0
+            }
+            
+        return results
+    
+    def find_shortest_algorithm(self, results: Dict[str, Dict[str, Any]]) -> str:
+        """
+        Find the algorithm that produced the shortest route
         
-        # Function to compute the shortest path from current to home,
-        # having visited all cities in visited_mask
-        def tsp_dp(current, visited_mask):
-            # If all cities are visited, return to home
-            if visited_mask == (1 << n) - 1:
-                return dist_matrix[current][home_idx], [home_idx]
+        Args:
+            results: Dictionary with results for each algorithm
             
-            # If we've computed this state before, return the memoized result
-            if (current, visited_mask) in memo:
-                return memo[(current, visited_mask)]
-            
-            min_dist = float('inf')
-            best_path = None
-            
-            # Try visiting each unvisited city
-            for next_city in range(n):
-                # Skip if already visited or if it's the same as current
-                if visited_mask & (1 << next_city) or next_city == current:
-                    continue
+        Returns:
+            Name of the algorithm with shortest route
+        """
+        shortest_distance = float('inf')
+        shortest_algo = None
+        
+        for algo_name, data in results.items():
+            if data['length'] < shortest_distance:
+                shortest_distance = data['length']
+                shortest_algo = algo_name
                 
-                # Calculate distance through this next city
-                next_visited_mask = visited_mask | (1 << next_city)
-                distance_to_next = dist_matrix[current][next_city]
-                
-                # Recursive call to find the best path after visiting next_city
-                remaining_dist, remaining_path = tsp_dp(next_city, next_visited_mask)
-                total_dist = distance_to_next + remaining_dist
-                
-                if total_dist < min_dist:
-                    min_dist = total_dist
-                    best_path = [next_city] + remaining_path
-            
-            # Memoize and return the result
-            memo[(current, visited_mask)] = (min_dist, best_path)
-            return min_dist, best_path
-        
-        # Start the algorithm from the home city
-        # Only the home city is visited initially
-        initial_mask = 1 << home_idx
-        total_distance, path_indices = tsp_dp(home_idx, initial_mask)
-        
-        # Convert indices back to city names
-        path = [home_city]  # Start at home city
-        for idx in path_indices:
-            path.append(index_to_city[idx])
-        
-        # Validate the route before returning
-        validate_route(path, home_city)
-        
-        return path, total_distance
+        return shortest_algo
