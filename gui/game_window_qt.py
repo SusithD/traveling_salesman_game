@@ -4,7 +4,7 @@ Main game window for the Traveling Salesman Problem game
 import logging
 import sys
 import os
-from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget
+from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QScrollArea, QSizePolicy
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QIcon
 
@@ -41,19 +41,46 @@ class GameWindow(QMainWindow):
     
     def setup_ui(self):
         """Setup the UI components"""
-        # Create central widget and layout
+        # Create central widget
         central_widget = QWidget(self)
+        central_widget.setObjectName("centralWidget")
         self.setCentralWidget(central_widget)
         
         main_layout = QVBoxLayout(central_widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
         
+        # Create a scroll area to contain the game content
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setObjectName("mainScrollArea")
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setFrameShape(QScrollArea.NoFrame)
+        self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        
+        # Create a container widget for the scroll area
+        scroll_container = QWidget()
+        scroll_container.setObjectName("scrollContainer")
+        scroll_container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        
+        # Layout for the scroll container
+        container_layout = QVBoxLayout(scroll_container)
+        container_layout.setContentsMargins(0, 0, 0, 0)
+        container_layout.setSpacing(0)
+        
         # Create game flow manager
         self.game_flow_manager = GameFlowManager(self)
+        game_widget = self.game_flow_manager.get_widget()
+        game_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.MinimumExpanding)
         
-        # Add the stacked widget from the flow manager to the main layout
-        main_layout.addWidget(self.game_flow_manager.get_widget())
+        # Add game widget to container layout
+        container_layout.addWidget(game_widget)
+        
+        # Set the container as the scroll area's widget
+        self.scroll_area.setWidget(scroll_container)
+        
+        # Add scroll area to the main layout
+        main_layout.addWidget(self.scroll_area)
     
     def center_on_screen(self):
         """Center the window on the screen"""
@@ -164,16 +191,27 @@ def run_application():
         background-color: #3c3c3c;
     }
     
+    /* Enhanced scrollbar styling for better user experience */
+    QScrollArea {
+        border: none;
+        background-color: transparent;
+    }
+    
     QScrollBar:vertical {
-        background: #2c2c2c;
+        background-color: #2c2c2c;
         width: 12px;
         border-radius: 6px;
+        margin: 0px;
     }
     
     QScrollBar::handle:vertical {
-        background: #555555;
-        min-height: 20px;
+        background-color: #555555;
+        min-height: 30px;
         border-radius: 6px;
+    }
+    
+    QScrollBar::handle:vertical:hover {
+        background-color: #666666;
     }
     
     QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
@@ -181,19 +219,43 @@ def run_application():
     }
     
     QScrollBar:horizontal {
-        background: #2c2c2c;
+        background-color: #2c2c2c;
         height: 12px;
         border-radius: 6px;
+        margin: 0px;
     }
     
     QScrollBar::handle:horizontal {
-        background: #555555;
-        min-width: 20px;
+        background-color: #555555;
+        min-width: 30px;
         border-radius: 6px;
+    }
+    
+    QScrollBar::handle:horizontal:hover {
+        background-color: #666666;
     }
     
     QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
         width: 0px;
+    }
+    
+    /* Make nested scroll areas work better together */
+    QScrollArea QScrollArea {
+        background-color: transparent;
+    }
+    
+    /* Fixed sizing issues with content being cut off */
+    #scrollContainer {
+        background-color: transparent;
+    }
+    
+    #mainScrollArea {
+        background-color: transparent;
+    }
+    
+    /* Ensure content inside scroll areas is properly sized */
+    QScrollArea > QWidget > QWidget {
+        background-color: transparent;
     }
     
     QProgressBar {

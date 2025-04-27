@@ -32,11 +32,33 @@ class ResultsScreen(QWidget):
         """Setup the UI components"""
         # Main layout
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(40, 40, 40, 40)
+        main_layout.setContentsMargins(30, 30, 30, 30)
         main_layout.setSpacing(20)
         
-        # Create container
+        # Set size policy for better scrolling behavior
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.MinimumExpanding)
+        
+        # Create main scroll area for the entire content
+        content_scroll = QScrollArea()
+        content_scroll.setWidgetResizable(True)
+        content_scroll.setFrameShape(QScrollArea.NoFrame)
+        content_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        content_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        content_scroll.setStyleSheet("""
+            background: transparent;
+            border: none;
+        """)
+        
+        # Create content widget for the scroll area
+        content_widget = QWidget()
+        content_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.MinimumExpanding)
+        content_layout = QVBoxLayout(content_widget)
+        content_layout.setContentsMargins(10, 10, 10, 10)
+        content_layout.setSpacing(20)
+        
+        # Create container with flexible sizing
         container = QFrame()
+        container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         container.setStyleSheet("""
             background-color: #111111;
             border: 2px solid #333333;
@@ -108,20 +130,39 @@ class ResultsScreen(QWidget):
         container_layout.addWidget(self.journey_summary)
         
         # Algorithm results displayed in stages
-        self.results_container = QFrame()
+        results_scroll_area = QScrollArea()
+        results_scroll_area.setWidgetResizable(True)
+        results_scroll_area.setFrameShape(QScrollArea.NoFrame)
+        results_scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        results_scroll_area.setStyleSheet("""
+            background: transparent;
+            border: none;
+        """)
+        
+        self.results_container = QWidget()
+        self.results_container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.MinimumExpanding)
         self.results_container.setStyleSheet("""
             background-color: #222222;
             border-radius: 10px;
             padding: 15px;
         """)
         results_layout = QVBoxLayout(self.results_container)
+        results_layout.setContentsMargins(15, 15, 15, 15)
+        results_layout.setSpacing(15)
         
         # Algorithm cards container (will be populated dynamically)
         self.algo_cards_layout = QVBoxLayout()
         self.algo_cards_layout.setSpacing(15)
         results_layout.addLayout(self.algo_cards_layout)
         
-        container_layout.addWidget(self.results_container)
+        # Set the container as the scroll area widget
+        results_scroll_area.setWidget(self.results_container)
+        
+        # Make sure the scroll area has a proper height
+        results_scroll_area.setMinimumHeight(300)
+        results_scroll_area.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        
+        container_layout.addWidget(results_scroll_area, 1)
         
         # Winner section (initially hidden)
         self.winner_frame = QFrame()
@@ -152,6 +193,7 @@ class ResultsScreen(QWidget):
         winner_layout.addWidget(self.winner_label)
         
         self.winner_stats = QLabel()
+        self.winner_stats.setWordWrap(True)
         self.winner_stats.setStyleSheet("""
             color: rgba(255, 255, 255, 0.8);
             font-size: 14px;
@@ -205,13 +247,20 @@ class ResultsScreen(QWidget):
         
         container_layout.addLayout(button_layout)
         
-        # Add container to main layout
-        main_layout.addWidget(container)
+        # Add container to content layout
+        content_layout.addWidget(container)
+        
+        # Set the content widget as the scroll area widget
+        content_scroll.setWidget(content_widget)
+        
+        # Add scroll area to main layout
+        main_layout.addWidget(content_scroll)
     
     def create_algorithm_card(self, algorithm, result):
         """Create a card showing algorithm results"""
         card = QFrame()
         card.setObjectName(f"{algorithm.lower().replace(' ', '_')}_card")
+        card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         
         if self.flow_manager.game_state.shortest_algorithm == algorithm:
             # Highlight the winning algorithm
@@ -298,18 +347,36 @@ class ResultsScreen(QWidget):
         route_title.setStyleSheet("color: #bbbbbb; font-size: 14px;")
         route_layout.addWidget(route_title)
         
+        # Use a scroll area for potentially long routes
+        route_scroll = QScrollArea()
+        route_scroll.setWidgetResizable(True)
+        route_scroll.setFrameShape(QScrollArea.NoFrame)
+        route_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        route_scroll.setStyleSheet("""
+            background: transparent;
+            border: none;
+        """)
+        
+        route_content = QWidget()
+        route_content_layout = QVBoxLayout(route_content)
+        route_content_layout.setContentsMargins(5, 5, 5, 5)
+        
         route_text = " → ".join(result['route'])
         route_label = QLabel(route_text)
         route_label.setWordWrap(True)
         route_label.setStyleSheet("""
             color: white;
             font-size: 14px;
-            padding: 5px;
             background-color: #333333;
             border-radius: 5px;
+            padding: 8px;
         """)
-        route_layout.addWidget(route_label)
+        route_content_layout.addWidget(route_label)
         
+        route_scroll.setWidget(route_content)
+        route_scroll.setMaximumHeight(100)  # Limit height but allow scrolling
+        
+        route_layout.addWidget(route_scroll)
         card_layout.addWidget(route_frame)
         
         return card

@@ -4,7 +4,8 @@ Summary screen for the Traveling Salesman Problem game
 import logging
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, 
-    QFrame, QGraphicsDropShadowEffect, QSizePolicy, QSpacerItem
+    QFrame, QGraphicsDropShadowEffect, QSizePolicy, QSpacerItem,
+    QScrollArea
 )
 from PyQt5.QtCore import Qt, QPropertyAnimation, QRect, QEasingCurve
 from PyQt5.QtGui import QColor, QFont
@@ -27,8 +28,18 @@ class SummaryScreen(QWidget):
         main_layout.setContentsMargins(40, 40, 40, 40)
         main_layout.setSpacing(20)
         
-        # Create container
+        # Enable size constraints to work better with scrolling
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        
+        # Create scrollable content
+        content_widget = QWidget()
+        content_layout = QVBoxLayout(content_widget)
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setSpacing(20)
+        
+        # Create container with flexible sizing
         container = QFrame()
+        container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         container.setStyleSheet("""
             background-color: #111111;
             border: 2px solid #333333;
@@ -104,8 +115,18 @@ class SummaryScreen(QWidget):
         
         container_layout.addWidget(player_frame)
         
-        # Game statistics
+        # Game statistics - use a scroll area for this section
+        stats_scroll_area = QScrollArea()
+        stats_scroll_area.setWidgetResizable(True)
+        stats_scroll_area.setFrameShape(QScrollArea.NoFrame)
+        stats_scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        stats_scroll_area.setStyleSheet("""
+            background: transparent;
+            border: none;
+        """)
+        
         stats_frame = QFrame()
+        stats_frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         stats_frame.setStyleSheet("""
             background-color: #222222;
             border-radius: 10px;
@@ -222,7 +243,9 @@ class SummaryScreen(QWidget):
         
         stats_layout.addLayout(algo_grid)
         
-        container_layout.addWidget(stats_frame)
+        # Set the stats frame as the scroll area widget
+        stats_scroll_area.setWidget(stats_frame)
+        container_layout.addWidget(stats_scroll_area)
         
         # Prediction result
         prediction_frame = QFrame()
@@ -321,8 +344,11 @@ class SummaryScreen(QWidget):
         
         container_layout.addLayout(button_layout)
         
-        # Add container to main layout
-        main_layout.addWidget(container)
+        # Add container to content layout
+        content_layout.addWidget(container)
+        
+        # Add content to main layout
+        main_layout.addWidget(content_widget)
     
     def create_stat_box(self, icon, title, value):
         """Create a statistics box layout"""
@@ -364,6 +390,7 @@ class SummaryScreen(QWidget):
         # Update algorithm results
         results = self.flow_manager.game_state.algorithm_results
         shortest_algorithm = self.flow_manager.game_state.shortest_algorithm
+        shortest_distance = 0  # Default initialization
         
         if results and shortest_algorithm:
             # Update shortest distance

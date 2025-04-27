@@ -477,3 +477,15 @@ class CalculatingScreen(QWidget):
     def show_results(self):
         """Show the results screen"""
         self.flow_manager.show_results_screen()
+    
+    def update_display(self):
+        """Update the display with current game state"""
+        # Show user prediction
+        prediction = self.flow_manager.game_state.user_prediction
+        if prediction:
+            self.prediction_label.setText(f"You predicted that {prediction} will find the shortest route")
+        else:
+            self.prediction_label.setText("")
+            
+        # Reset the screen for a new calculation
+        self.reset()

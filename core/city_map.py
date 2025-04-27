@@ -7,8 +7,7 @@ from utils.validation import validate_distance_range
 
 class CityMap:
     def __init__(self):
-        self.cities = ['City A', 'City B', 'City C', 'City D', 'City E', 
-                      'City F', 'City G', 'City H', 'City I', 'City J']
+        self.cities = []
         self.distances = {}
         self.city_positions = {}  # For visualization
     

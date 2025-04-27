@@ -389,7 +389,8 @@ class PredictionScreen(QWidget):
         }
         
         # Store the user's prediction in the game state
-        self.flow_manager.game_state.user_prediction = algorithm_names[self.selected_algorithm]
+        user_prediction = algorithm_names[self.selected_algorithm]
+        self.flow_manager.game_state.user_prediction = user_prediction
         
         # Move to the calculation animation screen
-        self.flow_manager.show_calculating_screen()
+        self.flow_manager.show_calculating_screen(user_prediction)
