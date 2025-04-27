@@ -10,7 +10,92 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, QPropertyAnimation, QRect, QEasingCurve, QSize
 from PyQt5.QtGui import QColor, QFont
 
+# Import matplotlib for algorithm performance graphs
+import matplotlib
+matplotlib.use('Qt5Agg')  # Use Qt5Agg backend
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
+from matplotlib.figure import Figure
+import numpy as np
+
 logger = logging.getLogger("SummaryScreen")
+
+class MatplotlibFigureCanvas(FigureCanvasQTAgg):
+    """Custom matplotlib canvas for algorithm performance graphs"""
+    def __init__(self, width=8, height=4, dpi=100):
+        self.fig = Figure(figsize=(width, height), dpi=dpi)
+        self.fig.set_facecolor('#2d2d2d')  # Dark background
+        super().__init__(self.fig)
+        self.setStyleSheet("background-color: transparent;")
+        
+    def create_performance_graphs(self, algorithm_results):
+        """Create performance comparison graphs for the algorithms"""
+        if not algorithm_results:
+            return
+        
+        # Clear any existing plots
+        self.fig.clear()
+        
+        # Set up the figure with two subplots side by side
+        ax1 = self.fig.add_subplot(121)  # Execution time chart
+        ax2 = self.fig.add_subplot(122)  # Route length chart
+        
+        # Extract data
+        algorithms = []
+        times = []
+        lengths = []
+        colors = []
+        
+        # Define algorithm colors to match the card styling
+        algo_colors = {
+            'Brute Force': '#e74c3c',
+            'Nearest Neighbor': '#3498db',
+            'Dynamic Programming': '#2ecc71'
+        }
+        
+        for algo, data in algorithm_results.items():
+            algorithms.append(algo)
+            times.append(data['time'])
+            lengths.append(data['length'])
+            colors.append(algo_colors.get(algo, '#888888'))
+        
+        # Create bar chart for execution times
+        bar1 = ax1.bar(algorithms, times, color=colors, alpha=0.7, edgecolor='white', linewidth=1)
+        ax1.set_title('Execution Time Comparison', color='white', fontsize=10)
+        ax1.set_ylabel('Time (seconds)', color='white', fontsize=9)
+        ax1.tick_params(axis='both', colors='white', labelsize=8)
+        ax1.grid(True, color='#555555', linestyle='--', linewidth=0.5, alpha=0.3)
+        ax1.set_facecolor('#1a1a1a')
+        
+        # Add time values on top of the bars
+        for rect in bar1:
+            height = rect.get_height()
+            ax1.text(rect.get_x() + rect.get_width()/2., height,
+                    f'{height:.6f}',
+                    ha='center', va='bottom', color='white', fontsize=8)
+        
+        # Create bar chart for route lengths
+        bar2 = ax2.bar(algorithms, lengths, color=colors, alpha=0.7, edgecolor='white', linewidth=1)
+        ax2.set_title('Route Length Comparison', color='white', fontsize=10)
+        ax2.set_ylabel('Distance (km)', color='white', fontsize=9)
+        ax2.tick_params(axis='both', colors='white', labelsize=8)
+        ax2.grid(True, color='#555555', linestyle='--', linewidth=0.5, alpha=0.3)
+        ax2.set_facecolor('#1a1a1a')
+        
+        # Add length values on top of the bars
+        for rect in bar2:
+            height = rect.get_height()
+            ax2.text(rect.get_x() + rect.get_width()/2., height,
+                    f'{height:.2f}',
+                    ha='center', va='bottom', color='white', fontsize=8)
+        
+        # Find the shortest route algorithm and highlight it
+        shortest_algo_index = lengths.index(min(lengths))
+        bar2.patches[shortest_algo_index].set_edgecolor('#27ae60')
+        bar2.patches[shortest_algo_index].set_linewidth(3)
+        
+        self.fig.subplots_adjust(left=0.12, bottom=0.15, right=0.95, top=0.9, wspace=0.3)
+        self.fig.set_tight_layout(True)
+        self.fig.canvas.draw_idle()
 
 class SummaryScreen(QWidget):
     """
@@ -41,6 +126,10 @@ class SummaryScreen(QWidget):
                 border: 1px solid rgba(255, 255, 255, 0.1);
             }
         """)
+        
+        # Initialize the matplotlib canvas for graphs
+        self.graph_canvas = MatplotlibFigureCanvas(width=10, height=4)
+        self.graph_canvas.setMinimumHeight(300)
         
         container_layout = QVBoxLayout(central_frame)
         container_layout.setContentsMargins(40, 40, 40, 40)
@@ -361,6 +450,50 @@ class SummaryScreen(QWidget):
         algo_cards_layout.addWidget(self.dp_card)
         
         algo_layout.addLayout(algo_cards_layout)
+        
+        # Add visualization section title
+        vis_title_layout = QHBoxLayout()
+        vis_title = QLabel("PERFORMANCE COMPARISON GRAPHS")
+        vis_title.setStyleSheet("""
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            margin-top: 10px;
+        """)
+        vis_title_layout.addWidget(vis_title)
+        vis_title_layout.addStretch()
+        
+        # Add info badge about graphs
+        info_label = QLabel("📊 Visual comparison of algorithm time and route length")
+        info_label.setStyleSheet("""
+            color: #aaaaaa;
+            font-size: 12px;
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 4px 12px;
+        """)
+        vis_title_layout.addWidget(info_label)
+        
+        algo_layout.addLayout(vis_title_layout)
+        
+        # Add graph visualization frame
+        graph_frame = QFrame()
+        graph_frame.setObjectName("graphFrame")
+        graph_frame.setStyleSheet("""
+            #graphFrame {
+                background-color: rgba(26, 26, 26, 0.7);
+                border-radius: 12px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+            }
+        """)
+        graph_layout = QVBoxLayout(graph_frame)
+        graph_layout.setContentsMargins(15, 15, 15, 15)
+        
+        # Add the matplotlib canvas to the frame
+        graph_layout.addWidget(self.graph_canvas)
+        
+        algo_layout.addWidget(graph_frame)
         
         container_layout.addWidget(algo_frame)
         
@@ -706,6 +839,9 @@ class SummaryScreen(QWidget):
             
             # Update winner info
             self.winner_name.setText(shortest_algorithm)
+            
+            # Generate algorithm performance comparison graphs
+            self.graph_canvas.create_performance_graphs(results)
             
             # Update algorithm cards
             for algo_name in ["Brute Force", "Nearest Neighbor", "Dynamic Programming"]:
