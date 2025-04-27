@@ -489,6 +489,9 @@ class PredictionScreen(QWidget):
         self.calculate_button.setEnabled(False)
         self.selected_algorithm = None
         
+        # Set appropriate tooltips
+        self.calculate_button.setToolTip("Please select an algorithm first")
+        
         # Remove highlighting from all cards
         for card_name in ["brute_force_card", "nearest_neighbor_card", "dynamic_programming_card"]:
             card = self.findChild(QFrame, card_name)

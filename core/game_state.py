@@ -109,3 +109,36 @@ class GameState:
             return False
         
         return True
+    
+    def has_sufficient_cities(self):
+        """Check if enough cities are selected (at least 2 besides home city)"""
+        if not self.selected_cities:
+            return False
+            
+        cities_excluding_home = [city for city in self.selected_cities if city != self.home_city]
+        return len(cities_excluding_home) >= 2
+        
+    def has_valid_prediction(self):
+        """Check if user has made a valid algorithm prediction"""
+        return self.user_prediction in ["Brute Force", "Nearest Neighbor", "Dynamic Programming"]
+        
+    def has_calculation_results(self):
+        """Check if algorithm calculation results are available"""
+        return bool(self.algorithm_results) and bool(self.shortest_algorithm)
+
+    def get_validation_errors(self):
+        """Get a list of current validation errors"""
+        errors = []
+        
+        if not self.city_map:
+            errors.append("No city map has been set")
+        
+        if not self.home_city:
+            errors.append("No home city has been set")
+        
+        if not self.selected_cities:
+            errors.append("No cities have been selected")
+        elif len([city for city in self.selected_cities if city != self.home_city]) < 2:
+            errors.append("At least 2 cities must be selected besides the home city")
+        
+        return errors

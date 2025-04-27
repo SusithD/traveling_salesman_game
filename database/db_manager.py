@@ -284,3 +284,153 @@ class DatabaseManager:
         finally:
             if conn:
                 conn.close()
+    
+    def save_session(self, player_name: str, game_state_data: Dict[str, Any]) -> bool:
+        """
+        Save the current game session for later continuation
+        
+        Args:
+            player_name: Name of the player
+            game_state_data: Dictionary containing serializable game state data
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            conn = sqlite3.connect(self.db_file)
+            cursor = conn.cursor()
+            
+            # Create sessions table if it doesn't exist
+            cursor.execute('''
+            CREATE TABLE IF NOT EXISTS sessions (
+                player_name TEXT PRIMARY KEY,
+                session_data TEXT NOT NULL,
+                last_updated DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+            ''')
+            
+            # Serialize the game state to JSON
+            session_data = json.dumps(game_state_data)
+            
+            # Insert or update the session
+            cursor.execute('''
+            INSERT OR REPLACE INTO sessions 
+            (player_name, session_data, last_updated)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+            ''', (player_name, session_data))
+            
+            conn.commit()
+            logger.info(f"Game session saved for player {player_name}")
+            return True
+        
+        except sqlite3.Error as e:
+            logger.error(f"Error saving game session: {e}")
+            return False
+        
+        finally:
+            if conn:
+                conn.close()
+    
+    def load_session(self, player_name: str) -> Optional[Dict[str, Any]]:
+        """
+        Load a previously saved game session
+        
+        Args:
+            player_name: Name of the player
+            
+        Returns:
+            Dictionary containing game state data or None if no session found
+        """
+        try:
+            conn = sqlite3.connect(self.db_file)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            # Check if sessions table exists
+            cursor.execute('''
+            SELECT name FROM sqlite_master 
+            WHERE type='table' AND name='sessions'
+            ''')
+            
+            if not cursor.fetchone():
+                logger.info("No sessions table exists yet")
+                return None
+                
+            # Get the session data
+            cursor.execute('''
+            SELECT session_data, last_updated FROM sessions
+            WHERE player_name = ?
+            ''', (player_name,))
+            
+            row = cursor.fetchone()
+            if not row:
+                logger.info(f"No saved session found for player {player_name}")
+                return None
+                
+            # Parse the session data from JSON
+            session_data = json.loads(row['session_data'])
+            
+            # Add last_updated information
+            session_data['last_updated'] = row['last_updated']
+            
+            logger.info(f"Game session loaded for player {player_name}")
+            return session_data
+        
+        except sqlite3.Error as e:
+            logger.error(f"Error loading game session: {e}")
+            return None
+        
+        except json.JSONDecodeError as e:
+            logger.error(f"Error decoding session data: {e}")
+            return None
+            
+        finally:
+            if conn:
+                conn.close()
+                
+    def delete_session(self, player_name: str) -> bool:
+        """
+        Delete a saved game session
+        
+        Args:
+            player_name: Name of the player
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            conn = sqlite3.connect(self.db_file)
+            cursor = conn.cursor()
+            
+            # Check if sessions table exists
+            cursor.execute('''
+            SELECT name FROM sqlite_master 
+            WHERE type='table' AND name='sessions'
+            ''')
+            
+            if not cursor.fetchone():
+                logger.info("No sessions table exists")
+                return False
+            
+            # Delete the session
+            cursor.execute('''
+            DELETE FROM sessions
+            WHERE player_name = ?
+            ''', (player_name,))
+            
+            conn.commit()
+            
+            if cursor.rowcount > 0:
+                logger.info(f"Game session deleted for player {player_name}")
+                return True
+            else:
+                logger.info(f"No session found to delete for player {player_name}")
+                return False
+        
+        except sqlite3.Error as e:
+            logger.error(f"Error deleting game session: {e}")
+            return False
+            
+        finally:
+            if conn:
+                conn.close()

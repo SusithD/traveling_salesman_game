@@ -178,6 +178,11 @@ class WelcomeScreen(QWidget):
         # Add vertical spacer
         central_layout.addSpacing(20)
         
+        # Button layout for multiple buttons
+        button_layout = QVBoxLayout()
+        button_layout.setSpacing(15)
+        button_layout.setAlignment(Qt.AlignCenter)
+        
         # Start button with modern styling
         start_button = QPushButton("BEGIN ADVENTURE")
         start_button.setObjectName("startButton")
@@ -201,11 +206,40 @@ class WelcomeScreen(QWidget):
             }
         """)
         start_button.clicked.connect(self.on_start_clicked)
-        central_layout.addWidget(start_button, 0, Qt.AlignCenter)
+        button_layout.addWidget(start_button)
+        
+        # Session management button
+        session_button = QPushButton("MANAGE GAME SESSIONS")
+        session_button.setObjectName("sessionButton")
+        session_button.setStyleSheet("""
+            #sessionButton {
+                background-color: #2d3436;
+                color: white;
+                border: 1px solid #3D5AFE;
+                border-radius: 12px;
+                padding: 12px 20px;
+                font-size: 14px;
+                font-weight: bold;
+                letter-spacing: 1px;
+                min-width: 250px;
+            }
+            #sessionButton:hover {
+                background-color: #353b3d;
+                border: 1px solid #536DFE;
+            }
+            #sessionButton:pressed {
+                background-color: #22292e;
+            }
+        """)
+        session_button.clicked.connect(self.on_session_clicked)
+        button_layout.addWidget(session_button)
+        
+        # Add buttons to central layout
+        central_layout.addLayout(button_layout)
         
         # Add central frame to main layout
         main_layout.addWidget(central_frame, 0, Qt.AlignCenter)
-        
+    
     def on_start_clicked(self):
         """Handle the start button click event"""
         player_name = self.name_input.text().strip()
@@ -219,6 +253,10 @@ class WelcomeScreen(QWidget):
         
         # Move to the mission screen
         self.game_flow_manager.show_mission_screen()
+        
+    def on_session_clicked(self):
+        """Open the session management dialog"""
+        self.game_flow_manager.show_session_dialog()
         
     def update_display(self):
         """Update the display (called when screen is shown)"""

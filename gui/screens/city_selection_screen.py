@@ -748,21 +748,11 @@ class CitySelectionScreen(QWidget):
     def update_selection_count(self):
         """Update the selection counter and continue button state"""
         selected_count = len(self.get_selected_cities())
-        self.selection_counter.setText(f"{selected_count} cities selected")
+        min_required = 2
         
-        # Enable continue button if at least 2 cities (besides home) are selected
-        if selected_count >= 2:
-            self.continue_button.setEnabled(True)
-            self.selection_counter.setStyleSheet("""
-                color: white;
-                font-size: 14px;
-                font-weight: bold;
-                padding: 8px 15px;
-                background-color: rgba(46, 204, 113, 0.3);
-                border: 1px solid #2ecc71;
-                border-radius: 10px;
-            """)
-        else:
+        # Display the selection count with helpful context
+        if selected_count < min_required:
+            self.selection_counter.setText(f"{selected_count}/{min_required} cities selected (need {min_required-selected_count} more)")
             self.continue_button.setEnabled(False)
             self.selection_counter.setStyleSheet("""
                 color: white;
@@ -773,6 +763,33 @@ class CitySelectionScreen(QWidget):
                 border: 1px solid #e74c3c;
                 border-radius: 10px;
             """)
+            
+            # Show tooltip with more detailed guidance
+            self.selection_counter.setToolTip("You need to select at least 2 cities besides your home city")
+            self.continue_button.setToolTip("Please select at least 2 cities to visit before continuing")
+        else:
+            self.selection_counter.setText(f"{selected_count} cities selected ✓")
+            self.continue_button.setEnabled(True)
+            self.selection_counter.setStyleSheet("""
+                color: white;
+                font-size: 14px;
+                font-weight: bold;
+                padding: 8px 15px;
+                background-color: rgba(46, 204, 113, 0.3);
+                border: 1px solid #2ecc71;
+                border-radius: 10px;
+            """)
+            
+            # Update tooltips
+            self.selection_counter.setToolTip("Selection complete - you can proceed")
+            self.continue_button.setToolTip("Continue to algorithm prediction")
+            
+        # Signal that selection has changed
+        self.flow_manager.game_state.selected_cities = self.get_selected_cities()
+        
+        # If home city is set, ensure it's included
+        if self.flow_manager.game_state.home_city and self.flow_manager.game_state.home_city not in self.flow_manager.game_state.selected_cities:
+            self.flow_manager.game_state.selected_cities.append(self.flow_manager.game_state.home_city)
     
     def get_selected_cities(self):
         """Get list of selected cities"""

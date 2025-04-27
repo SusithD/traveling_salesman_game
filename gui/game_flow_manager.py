@@ -356,3 +356,211 @@ class GameFlowManager(QObject):
                 logger.info(f"Game results saved for {player_name}")
             except Exception as e:
                 logger.error(f"Error saving game results: {str(e)}")
+    
+    def save_game_session(self):
+        """Save the current game session to the database"""
+        if not self.game_state.player_name:
+            logger.warning("Cannot save session: no player name set")
+            return False
+            
+        try:
+            # Create a serializable representation of the game state
+            session_data = {
+                "home_city": self.game_state.home_city,
+                "selected_cities": self.game_state.selected_cities,
+                "current_screen": self.stack.currentIndex(),
+                "user_prediction": self.game_state.user_prediction
+            }
+            
+            # Add city map data if available
+            if self.game_state.city_map:
+                cities = self.game_state.city_map.get_cities()
+                distances = self.game_state.city_map.get_distances()
+                
+                # Convert tuple keys in distances to strings for JSON serialization
+                serializable_distances = {}
+                for (city1, city2), distance in distances.items():
+                    serializable_distances[f"{city1},{city2}"] = distance
+                    
+                session_data["city_map"] = {
+                    "cities": cities,
+                    "distances": serializable_distances
+                }
+                
+            # Save to database
+            success = self.db_manager.save_session(self.game_state.player_name, session_data)
+            if success:
+                logger.info(f"Game session saved for player {self.game_state.player_name}")
+                return True
+            else:
+                logger.error("Failed to save game session")
+                return False
+        except Exception as e:
+            logger.error(f"Error saving game session: {str(e)}")
+            return False
+
+    def load_game_session(self, player_name):
+        """Restore a previously saved game session"""
+        try:
+            session_data = self.db_manager.load_session(player_name)
+            
+            if not session_data:
+                logger.info(f"No saved session found for player {player_name}")
+                return False
+                
+            # Set player name
+            self.game_state.player_name = player_name
+            
+            # Restore city map if available
+            if "city_map" in session_data:
+                from core.city_map import CityMap
+                city_map = CityMap()
+                
+                # Add cities
+                for city in session_data["city_map"]["cities"]:
+                    city_map.add_city(city)
+                    
+                # Add distances
+                for key, distance in session_data["city_map"]["distances"].items():
+                    city1, city2 = key.split(",")
+                    city_map.add_distance(city1, city2, distance)
+                    
+                self.game_state.set_city_map(city_map)
+            
+            # Restore other game state properties
+            if "home_city" in session_data:
+                self.game_state.home_city = session_data["home_city"]
+                
+            if "selected_cities" in session_data:
+                self.game_state.selected_cities = session_data["selected_cities"]
+                
+            if "user_prediction" in session_data:
+                self.game_state.user_prediction = session_data["user_prediction"]
+                
+            # Navigate to the appropriate screen
+            if "current_screen" in session_data:
+                screen_index = session_data["current_screen"]
+                if 0 <= screen_index < self.stack.count():
+                    self.stack.setCurrentIndex(screen_index)
+                    # Update the current screen's display
+                    current_widget = self.stack.currentWidget()
+                    if hasattr(current_widget, "update_display"):
+                        current_widget.update_display()
+            
+            logger.info(f"Game session restored for player {player_name}")
+            return True
+        except Exception as e:
+            logger.error(f"Error restoring game session: {str(e)}")
+            return False
+
+    def show_session_dialog(self):
+        """Show a dialog to save or load a game session"""
+        from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QInputDialog, QMessageBox
+        
+        dialog = QDialog(self.stack)
+        dialog.setWindowTitle("Game Session")
+        dialog.setMinimumWidth(400)
+        dialog.setStyleSheet("""
+            background-color: #222222;
+            color: white;
+        """)
+        
+        layout = QVBoxLayout(dialog)
+        
+        # Instructions
+        instructions = QLabel("Save your game progress to continue later, or load a previous session.")
+        instructions.setStyleSheet("color: white; font-size: 14px; margin-bottom: 15px;")
+        instructions.setWordWrap(True)
+        layout.addWidget(instructions)
+        
+        # Buttons
+        button_layout = QHBoxLayout()
+        
+        save_button = QPushButton("Save Session")
+        save_button.setStyleSheet("""
+            background-color: #3D5AFE;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 15px;
+            font-size: 14px;
+        """)
+        
+        load_button = QPushButton("Load Session")
+        load_button.setStyleSheet("""
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 15px;
+            font-size: 14px;
+        """)
+        
+        delete_button = QPushButton("Delete Session")
+        delete_button.setStyleSheet("""
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 15px;
+            font-size: 14px;
+        """)
+        
+        cancel_button = QPushButton("Cancel")
+        cancel_button.setStyleSheet("""
+            background-color: #95a5a6;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 15px;
+            font-size: 14px;
+        """)
+        
+        # Connect button signals
+        def save_session():
+            if self.game_state.player_name:
+                if self.save_game_session():
+                    QMessageBox.information(dialog, "Success", "Game session saved successfully!")
+                else:
+                    QMessageBox.warning(dialog, "Error", "Failed to save game session.")
+            else:
+                name, ok = QInputDialog.getText(dialog, "Player Name", "Enter your name to save the session:")
+                if ok and name:
+                    self.game_state.player_name = name
+                    if self.save_game_session():
+                        QMessageBox.information(dialog, "Success", "Game session saved successfully!")
+                    else:
+                        QMessageBox.warning(dialog, "Error", "Failed to save game session.")
+        
+        def load_session():
+            name, ok = QInputDialog.getText(dialog, "Player Name", "Enter your name to load your saved session:")
+            if ok and name:
+                if self.load_game_session(name):
+                    QMessageBox.information(dialog, "Success", "Game session loaded successfully!")
+                    dialog.accept()
+                else:
+                    QMessageBox.warning(dialog, "Not Found", f"No saved session found for player '{name}'.")
+        
+        def delete_session():
+            name, ok = QInputDialog.getText(dialog, "Player Name", "Enter your name to delete your saved session:")
+            if ok and name:
+                if self.db_manager.delete_session(name):
+                    QMessageBox.information(dialog, "Success", f"Game session for player '{name}' has been deleted.")
+                else:
+                    QMessageBox.warning(dialog, "Not Found", f"No saved session found for player '{name}'.")
+        
+        save_button.clicked.connect(save_session)
+        load_button.clicked.connect(load_session)
+        delete_button.clicked.connect(delete_session)
+        cancel_button.clicked.connect(dialog.reject)
+        
+        button_layout.addWidget(save_button)
+        button_layout.addWidget(load_button)
+        layout.addLayout(button_layout)
+        
+        button_layout2 = QHBoxLayout()
+        button_layout2.addWidget(delete_button)
+        button_layout2.addWidget(cancel_button)
+        layout.addLayout(button_layout2)
+        
+        dialog.exec_()
