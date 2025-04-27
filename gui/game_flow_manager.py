@@ -5,11 +5,12 @@ Manages transitions between screens to create a step-by-step game flow
 import logging
 import random
 from PyQt5.QtWidgets import QStackedWidget, QMessageBox, QVBoxLayout, QWidget, QSizePolicy
-from PyQt5.QtCore import QObject, pyqtSignal, Qt
+from PyQt5.QtCore import QObject, pyqtSignal, Qt, QPropertyAnimation, QEasingCurve, QSize
 
 from core.game_state import GameState
 from core.city_map import CityMap
 from core.route_calculator import RouteCalculator
+from core.demo_manager import DemoManager
 from database.db_manager import DatabaseManager
 
 from gui.screens.welcome_screen import WelcomeScreen
@@ -28,6 +29,10 @@ class GameFlowManager(QObject):
     """
     # Signal for when calculations are complete
     calculations_complete = pyqtSignal()
+    
+    # Signal for screen transitions
+    screen_transition_started = pyqtSignal(int, int)  # from_index, to_index
+    screen_transition_finished = pyqtSignal(int)  # current_index
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -79,9 +84,17 @@ class GameFlowManager(QObject):
         # Initialize city map
         self._initialize_city_map()
         
+        # Initialize demo manager
+        self.demo_manager = DemoManager(self)
+        self.demo_manager.demo_completed.connect(self.on_demo_completed)
+        self.demo_manager.demo_canceled.connect(self.on_demo_canceled)
+        
+        # Configuration for transitions
+        self.use_animations = True
+        
         # Start with welcome screen
         self.show_welcome_screen()
-    
+
     def _initialize_city_map(self):
         """Initialize a default city map"""
         city_map = CityMap()
@@ -131,21 +144,195 @@ class GameFlowManager(QObject):
         """Display the welcome screen"""
         logger.info("Showing welcome screen")
         self._scroll_to_top()
-        self.stack.setCurrentWidget(self.welcome_screen)
+        self._show_screen(self.welcome_screen, "backward")
     
     def show_mission_screen(self):
         """Display the mission briefing screen"""
         logger.info("Showing mission screen")
         self.mission_screen.update_display()
         self._scroll_to_top()
-        self.stack.setCurrentWidget(self.mission_screen)
+        self._show_screen(self.mission_screen, "forward")
     
     def show_city_selection_screen(self):
         """Display the city selection screen"""
         logger.info("Showing city selection screen")
         self.city_selection_screen.update_display()
         self._scroll_to_top()
-        self.stack.setCurrentWidget(self.city_selection_screen)
+        self._show_screen(self.city_selection_screen, "forward")
+
+    def show_prediction_screen(self):
+        """Display the algorithm prediction screen if validation passes"""
+        logger.info("Validating for prediction screen")
+        if not self.is_valid_for_prediction_screen():
+            return
+            
+        logger.info("Showing prediction screen")
+        self.prediction_screen.update_display()
+        self._scroll_to_top()
+        self._show_screen(self.prediction_screen, "forward")
+    
+    def show_calculating_screen(self, user_prediction):
+        """Display the calculating animation screen and start calculation if validation passes"""
+        logger.info(f"Validating for calculating screen - user predicted: {user_prediction}")
+        if not self.is_valid_for_calculating_screen():
+            return
+            
+        logger.info(f"Showing calculating screen - user predicted: {user_prediction}")
+        self.game_state.user_prediction = user_prediction
+        self.calculating_screen.update_display()
+        self._scroll_to_top()
+        self._show_screen(self.calculating_screen, "forward")
+        
+        # Start the calculation process
+        self.calculating_screen.start_calculation()
+        
+        # Start calculations in background
+        self._run_algorithms()
+
+    def show_results_screen(self):
+        """Display the results screen after calculations complete if validation passes"""
+        logger.info("Validating for results screen")
+        if not self.is_valid_for_results_screen():
+            logger.error("Cannot show results - validation failed")
+            return
+            
+        logger.info("Showing results screen")
+        self.results_screen.setup_results()
+        self._scroll_to_top()
+        self._show_screen(self.results_screen, "forward")
+    
+    def show_summary_screen(self):
+        """Display the final summary screen"""
+        logger.info("Showing summary screen")
+        
+        # Save the game results to the database
+        self._save_game_results()
+        
+        self.summary_screen.update_display()
+        self._scroll_to_top()
+        self._show_screen(self.summary_screen, "forward")
+    
+    def start_demo(self):
+        """Start the automated demo mode"""
+        logger.info("Starting demo mode")
+        return self.demo_manager.start_demo()
+    
+    def on_demo_completed(self):
+        """Handle demo completion"""
+        logger.info("Demo completed successfully")
+        # Hide the demo indicator in the welcome screen
+        if hasattr(self.welcome_screen, 'demo_indicator'):
+            self.welcome_screen.demo_indicator.setVisible(False)
+            
+        # Show a success message
+        QMessageBox.information(
+            self.stack,
+            "Demo Completed",
+            "The automated demonstration has completed successfully! You can now try the game yourself."
+        )
+    
+    def on_demo_canceled(self):
+        """Handle demo cancellation"""
+        logger.info("Demo was canceled")
+        # Hide the demo indicator in the welcome screen
+        if hasattr(self.welcome_screen, 'demo_indicator'):
+            self.welcome_screen.demo_indicator.setVisible(False)
+            
+        # Show a message
+        QMessageBox.information(
+            self.stack,
+            "Demo Interrupted",
+            "The demo was interrupted. You can try again or play the game yourself."
+        )
+    
+    def animate_screen_transition(self, from_widget, to_widget, direction="forward"):
+        """
+        Animate the transition between screens
+        
+        Args:
+            from_widget: The current widget
+            to_widget: The target widget to transition to
+            direction: "forward" for right-to-left, "backward" for left-to-right
+        """
+        if not self.use_animations:
+            return False
+            
+        try:
+            # Prepare widgets for animation
+            self.stack.setCurrentWidget(from_widget)
+            
+            # Get the width of the stack
+            width = self.stack.width()
+            
+            # Create animations for the outgoing widget
+            anim_out = QPropertyAnimation(from_widget, b"pos")
+            anim_out.setDuration(300)
+            anim_out.setEasingCurve(QEasingCurve.InOutQuad)
+            
+            # Create animation for the incoming widget
+            # First add it to the stack if it's not already there
+            to_widget.setGeometry(0, 0, width, from_widget.height())
+            
+            anim_in = QPropertyAnimation(to_widget, b"pos")
+            anim_in.setDuration(300)
+            anim_in.setEasingCurve(QEasingCurve.InOutQuad)
+            
+            if direction == "forward":
+                # Forward animation (right to left)
+                anim_out.setStartValue(from_widget.pos())
+                anim_out.setEndValue(from_widget.pos().x() - width, from_widget.pos().y())
+                
+                # Position the incoming widget to the right
+                to_widget.move(width, 0)
+                anim_in.setStartValue(to_widget.pos())
+                anim_in.setEndValue(0, 0)
+            else:
+                # Backward animation (left to right)
+                anim_out.setStartValue(from_widget.pos())
+                anim_out.setEndValue(width, from_widget.pos().y())
+                
+                # Position the incoming widget to the left
+                to_widget.move(-width, 0)
+                anim_in.setStartValue(to_widget.pos())
+                anim_in.setEndValue(0, 0)
+            
+            # Run the animations
+            anim_out.start()
+            anim_in.start()
+            
+            # When animations complete, set the current widget
+            anim_in.finished.connect(lambda: self.stack.setCurrentWidget(to_widget))
+            
+            return True
+        except Exception as e:
+            logger.error(f"Error animating screen transition: {e}")
+            return False
+            
+    def _show_screen(self, screen, direction="forward"):
+        """
+        Show a screen with animation
+        
+        Args:
+            screen: The screen to show
+            direction: The direction of animation (forward/backward)
+        """
+        current_index = self.stack.currentIndex()
+        target_index = self.stack.indexOf(screen)
+        
+        # Emit signal that transition is starting
+        self.screen_transition_started.emit(current_index, target_index)
+        
+        if self.use_animations and current_index >= 0:
+            current_widget = self.stack.currentWidget()
+            success = self.animate_screen_transition(current_widget, screen, direction)
+            if not success:
+                # Fallback to direct transition if animation fails
+                self.stack.setCurrentWidget(screen)
+        else:
+            self.stack.setCurrentWidget(screen)
+            
+        # Emit signal that transition has finished
+        self.screen_transition_finished.emit(target_index)
     
     def is_valid_for_prediction_screen(self):
         """Check if conditions are met to show the prediction screen"""
@@ -177,17 +364,6 @@ class GameFlowManager(QObject):
             
         return True
 
-    def show_prediction_screen(self):
-        """Display the algorithm prediction screen if validation passes"""
-        logger.info("Validating for prediction screen")
-        if not self.is_valid_for_prediction_screen():
-            return
-            
-        logger.info("Showing prediction screen")
-        self.prediction_screen.update_display()
-        self._scroll_to_top()
-        self.stack.setCurrentWidget(self.prediction_screen)
-    
     def is_valid_for_calculating_screen(self):
         """Check if conditions are met to show the calculating screen"""
         if not self.is_valid_for_prediction_screen():
@@ -206,24 +382,6 @@ class GameFlowManager(QObject):
             
         return True
     
-    def show_calculating_screen(self, user_prediction):
-        """Display the calculating animation screen and start calculation if validation passes"""
-        logger.info(f"Validating for calculating screen - user predicted: {user_prediction}")
-        if not self.is_valid_for_calculating_screen():
-            return
-            
-        logger.info(f"Showing calculating screen - user predicted: {user_prediction}")
-        self.game_state.user_prediction = user_prediction
-        self.calculating_screen.update_display()
-        self._scroll_to_top()
-        self.stack.setCurrentWidget(self.calculating_screen)
-        
-        # Start the calculation process
-        self.calculating_screen.start_calculation()
-        
-        # Start calculations in background
-        self._run_algorithms()
-    
     def is_valid_for_results_screen(self):
         """Check if conditions are met to show the results screen"""
         if not self.game_state.algorithm_results:
@@ -232,29 +390,6 @@ class GameFlowManager(QObject):
             
         return True
 
-    def show_results_screen(self):
-        """Display the results screen after calculations complete if validation passes"""
-        logger.info("Validating for results screen")
-        if not self.is_valid_for_results_screen():
-            logger.error("Cannot show results - validation failed")
-            return
-            
-        logger.info("Showing results screen")
-        self.results_screen.setup_results()
-        self._scroll_to_top()
-        self.stack.setCurrentWidget(self.results_screen)
-    
-    def show_summary_screen(self):
-        """Display the final summary screen"""
-        logger.info("Showing summary screen")
-        
-        # Save the game results to the database
-        self._save_game_results()
-        
-        self.summary_screen.update_display()
-        self._scroll_to_top()
-        self.stack.setCurrentWidget(self.summary_screen)
-    
     def _run_algorithms(self):
         """Run all TSP algorithms and update the game state with results"""
         logger.info("Running TSP algorithms")

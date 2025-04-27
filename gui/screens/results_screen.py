@@ -9,6 +9,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt, QPropertyAnimation, QRect, QEasingCurve, QTimer
 from PyQt5.QtGui import QColor, QFont
+from utils.visualization import PerformanceChart, plot_route_on_map
 
 logger = logging.getLogger("ResultsScreen")
 
@@ -287,6 +288,80 @@ class ResultsScreen(QWidget):
         results_layout.addWidget(results_scroll)
         
         container_layout.addWidget(results_frame, 1)
+        
+        # Visualization tab widget with modern styling
+        self.visualization_frame = QFrame()
+        self.visualization_frame.setObjectName("visualizationFrame")
+        self.visualization_frame.setMinimumHeight(450)  # Minimum height
+        self.visualization_frame.setMaximumHeight(450)  # Maximum height to prevent auto-expansion
+        self.visualization_frame.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)  # Fixed vertical size policy
+        self.visualization_frame.setStyleSheet("""
+            #visualizationFrame {
+                background-color: rgba(33, 33, 33, 0.7);
+                border-radius: 15px;
+                padding: 5px;
+            }
+        """)
+        visualization_layout = QVBoxLayout(self.visualization_frame)
+        visualization_layout.setContentsMargins(20, 20, 20, 20)
+        visualization_layout.setSpacing(15)
+        
+        # Tab widget for different visualizations
+        self.viz_tabs = QTabWidget()
+        self.viz_tabs.setObjectName("vizTabs")
+        self.viz_tabs.setStyleSheet("""
+            QTabWidget {
+                background-color: transparent;
+                border: none;
+            }
+            QTabWidget::pane {
+                background-color: rgba(40, 40, 40, 0.7);
+                border: 1px solid #444444;
+                border-radius: 8px;
+                border-top-left-radius: 0px;
+            }
+            QTabBar::tab {
+                background-color: #2d3436;
+                color: #bbbbbb;
+                padding: 10px 20px;
+                border-top-left-radius: 8px;
+                border-top-right-radius: 8px;
+                margin-right: 3px;
+            }
+            QTabBar::tab:selected {
+                background-color: #9b59b6;
+                color: white;
+                font-weight: bold;
+            }
+            QTabBar::tab:hover:!selected {
+                background-color: #3d4446;
+                color: white;
+            }
+        """)
+        
+        # Create performance charts with fixed size
+        self.route_length_chart = PerformanceChart(width=7, height=4, dpi=80)
+        self.execution_time_chart = PerformanceChart(width=7, height=4, dpi=80)
+        self.comparison_chart = PerformanceChart(width=10, height=4, dpi=80)
+        self.route_map_widget = QWidget()
+        
+        # Set fixed size policies for all chart widgets
+        self.route_length_chart.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.execution_time_chart.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.comparison_chart.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.route_map_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+        # Add chart widgets to tabs
+        self.viz_tabs.addTab(self.route_length_chart, "Route Length")
+        self.viz_tabs.addTab(self.execution_time_chart, "Execution Time")
+        self.viz_tabs.addTab(self.comparison_chart, "Comparison")
+        self.viz_tabs.addTab(self.route_map_widget, "Route Map")
+        
+        # Add viz tabs to layout
+        visualization_layout.addWidget(self.viz_tabs)
+        
+        # Add visualization frame after results frame but before winner frame
+        container_layout.addWidget(self.visualization_frame)
         
         # Winner section with improved styling
         self.winner_frame = QFrame()
@@ -737,7 +812,7 @@ class ResultsScreen(QWidget):
             self.show_winner()
     
     def show_winner(self):
-        """Show the winning algorithm section"""
+        """Show the winning algorithm section and create visualization charts"""
         shortest_algorithm = self.flow_manager.game_state.shortest_algorithm
         if shortest_algorithm:
             result = self.flow_manager.game_state.algorithm_results[shortest_algorithm]
@@ -761,6 +836,72 @@ class ResultsScreen(QWidget):
             anim.setDuration(1000)
             anim.setEasingCurve(QEasingCurve.InOutCubic)
             anim.start()
+            
+            # Create the visualization charts
+            self.create_visualization_charts()
+
+    def create_visualization_charts(self):
+        """Create and display visualization charts for algorithm performance"""
+        try:
+            algorithm_results = self.flow_manager.game_state.algorithm_results
+            if not algorithm_results:
+                logger.warning("No algorithm results available for visualization")
+                return
+                
+            # Create route length comparison chart
+            self.route_length_chart.plot_route_lengths(algorithm_results)
+            
+            # Create execution time comparison chart
+            self.execution_time_chart.plot_execution_times(algorithm_results)
+            
+            # Create combined performance comparison chart
+            self.comparison_chart.plot_performance_comparison(algorithm_results)
+            
+            # Create route map for winning algorithm
+            self.create_route_map()
+            
+            logger.info("Successfully created algorithm performance visualizations")
+        except Exception as e:
+            logger.error(f"Error creating visualization charts: {e}")
+
+    def create_route_map(self):
+        """Create a visualization of the winning route"""
+        try:
+            # Get the winning algorithm and its route
+            shortest_algorithm = self.flow_manager.game_state.shortest_algorithm
+            if not shortest_algorithm:
+                return
+                
+            result = self.flow_manager.game_state.algorithm_results[shortest_algorithm]
+            route = result['route']
+            
+            # Get distances from the city map
+            distances = self.flow_manager.game_state.city_map.get_distances()
+            
+            # Create a route map figure
+            route_map_figure = plot_route_on_map(route, distances)
+            
+            if route_map_figure:
+                # Create layout for the route map tab
+                route_map_layout = QVBoxLayout(self.route_map_widget)
+                route_map_layout.setContentsMargins(0, 0, 0, 0)
+                
+                # Create a FigureCanvas to display the figure
+                from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
+                canvas = FigureCanvasQTAgg(route_map_figure)
+                route_map_layout.addWidget(canvas)
+                
+                # Add a label explaining the visualization
+                explanation = QLabel(f"Route visualization for {shortest_algorithm} algorithm")
+                explanation.setStyleSheet("""
+                    color: white;
+                    font-size: 14px;
+                    padding: 10px;
+                """)
+                explanation.setAlignment(Qt.AlignCenter)
+                route_map_layout.addWidget(explanation)
+        except Exception as e:
+            logger.error(f"Error creating route map: {e}")
     
     def restart_game(self):
         """Restart the game with a new scenario"""

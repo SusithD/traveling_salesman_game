@@ -234,8 +234,51 @@ class WelcomeScreen(QWidget):
         session_button.clicked.connect(self.on_session_clicked)
         button_layout.addWidget(session_button)
         
+        # Demo mode button - NEW
+        demo_button = QPushButton("WATCH DEMO")
+        demo_button.setObjectName("demoButton")
+        demo_button.setStyleSheet("""
+            #demoButton {
+                background-color: #8e44ad;
+                color: white;
+                border: none;
+                border-radius: 12px;
+                padding: 12px 20px;
+                font-size: 14px;
+                font-weight: bold;
+                letter-spacing: 1px;
+                min-width: 250px;
+            }
+            #demoButton:hover {
+                background-color: #9b59b6;
+            }
+            #demoButton:pressed {
+                background-color: #7d3c98;
+            }
+        """)
+        demo_button.clicked.connect(self.on_demo_clicked)
+        button_layout.addWidget(demo_button)
+        
         # Add buttons to central layout
         central_layout.addLayout(button_layout)
+        
+        # Demo indicator label - will be visible during demo
+        self.demo_indicator = QLabel("DEMO MODE RUNNING")
+        self.demo_indicator.setObjectName("demoIndicator")
+        self.demo_indicator.setStyleSheet("""
+            #demoIndicator {
+                background-color: #8e44ad;
+                color: white;
+                font-size: 12px;
+                font-weight: bold;
+                padding: 5px 15px;
+                border-radius: 10px;
+                margin-top: 10px;
+            }
+        """)
+        self.demo_indicator.setAlignment(Qt.AlignCenter)
+        self.demo_indicator.setVisible(False)
+        central_layout.addWidget(self.demo_indicator, 0, Qt.AlignCenter)
         
         # Add central frame to main layout
         main_layout.addWidget(central_frame, 0, Qt.AlignCenter)
@@ -257,6 +300,11 @@ class WelcomeScreen(QWidget):
     def on_session_clicked(self):
         """Open the session management dialog"""
         self.game_flow_manager.show_session_dialog()
+        
+    def on_demo_clicked(self):
+        """Start the automated demo mode"""
+        self.game_flow_manager.start_demo()
+        self.demo_indicator.setVisible(True)
         
     def update_display(self):
         """Update the display (called when screen is shown)"""
