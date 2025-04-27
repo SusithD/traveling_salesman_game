@@ -1,117 +1,286 @@
 """
 Database manager for the Traveling Salesman Problem game
+Handles storage and retrieval of game results and statistics
 """
+import logging
 import sqlite3
 import os
 import json
 from datetime import datetime
+from typing import List, Dict, Any, Optional
+
+logger = logging.getLogger("DatabaseManager")
 
 class DatabaseManager:
-    def __init__(self, db_file="tsp_game.db"):
-        """Initialize the database manager"""
-        # Check if the database directory exists
-        db_dir = os.path.dirname(db_file)
-        if db_dir and not os.path.exists(db_dir):
-            os.makedirs(db_dir)
-        
+    """
+    Manager for database operations related to the TSP game
+    """
+    
+    def __init__(self, db_file='tsp_game.db'):
+        """Initialize database connection and create tables if needed"""
         self.db_file = db_file
-        self.initialize_db()
+        self._ensure_tables_exist()
+        
+    def _ensure_tables_exist(self):
+        """Create necessary tables if they don't exist"""
+        try:
+            conn = sqlite3.connect(self.db_file)
+            cursor = conn.cursor()
+            
+            # Create the game_results table if it doesn't exist
+            cursor.execute('''
+            CREATE TABLE IF NOT EXISTS game_results (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                player_name TEXT NOT NULL,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                home_city TEXT NOT NULL,
+                cities_visited INTEGER NOT NULL,
+                route TEXT NOT NULL,
+                route_length REAL NOT NULL,
+                winning_algorithm TEXT NOT NULL,
+                execution_time REAL NOT NULL,
+                is_prediction_correct BOOLEAN,
+                prediction_algorithm TEXT
+            )
+            ''')
+            
+            conn.commit()
+            logger.info(f"Database tables initialized in {self.db_file}")
+        except sqlite3.Error as e:
+            logger.error(f"Database error: {e}")
+        finally:
+            if conn:
+                conn.close()
     
-    def initialize_db(self):
-        """Initialize the database schema"""
-        conn = sqlite3.connect(self.db_file)
-        cursor = conn.cursor()
+    def save_game_result(self, player_name: str, home_city: str, cities_visited: int,
+                       route: List[str], route_length: float, algorithm: str,
+                       execution_time: float, prediction_algorithm: str = None) -> bool:
+        """
+        Save a game result to the database
         
-        # Create game_results table if it doesn't exist
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS game_results (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            player_name TEXT NOT NULL,
-            home_city TEXT NOT NULL,
-            cities_visited INTEGER NOT NULL,
-            route TEXT NOT NULL,
-            route_length REAL NOT NULL,
-            algorithm TEXT NOT NULL,
-            execution_time REAL NOT NULL,
-            timestamp TEXT NOT NULL
-        )
-        ''')
+        Args:
+            player_name: Name of the player
+            home_city: Home city for the journey
+            cities_visited: Number of cities visited
+            route: List of cities in the optimal route
+            route_length: Total distance of the route
+            algorithm: Name of the winning algorithm
+            execution_time: Time taken by the algorithm
+            prediction_algorithm: Algorithm predicted by the player (optional)
         
-        conn.commit()
-        conn.close()
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            conn = sqlite3.connect(self.db_file)
+            cursor = conn.cursor()
+            
+            # Serialize the route list to JSON
+            route_json = json.dumps(route)
+            
+            # Determine if the prediction was correct
+            is_prediction_correct = None
+            if prediction_algorithm:
+                is_prediction_correct = (prediction_algorithm == algorithm)
+            
+            # Insert the result into the database
+            cursor.execute('''
+            INSERT INTO game_results 
+            (player_name, home_city, cities_visited, route, route_length, 
+             winning_algorithm, execution_time, is_prediction_correct, prediction_algorithm)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (player_name, home_city, cities_visited, route_json, route_length,
+                  algorithm, execution_time, is_prediction_correct, prediction_algorithm))
+            
+            conn.commit()
+            logger.info(f"Game result saved for player {player_name}")
+            return True
+        
+        except sqlite3.Error as e:
+            logger.error(f"Error saving game result: {e}")
+            return False
+        
+        finally:
+            if conn:
+                conn.close()
+                
+    def get_recent_results(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """
+        Get the most recent game results
+        
+        Args:
+            limit: Maximum number of results to retrieve
+        
+        Returns:
+            List of dictionaries containing game results
+        """
+        try:
+            conn = sqlite3.connect(self.db_file)
+            conn.row_factory = sqlite3.Row  # This enables column access by name
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+            SELECT * FROM game_results
+            ORDER BY timestamp DESC
+            LIMIT ?
+            ''', (limit,))
+            
+            results = []
+            for row in cursor.fetchall():
+                result = dict(row)
+                # Parse the route from JSON
+                result['route'] = json.loads(result['route'])
+                results.append(result)
+            
+            return results
+        
+        except sqlite3.Error as e:
+            logger.error(f"Error retrieving recent results: {e}")
+            return []
+        
+        finally:
+            if conn:
+                conn.close()
     
-    def save_game_result(self, player_name, home_city, cities_visited, route, route_length, algorithm, execution_time):
-        """Save a game result to the database"""
-        conn = sqlite3.connect(self.db_file)
-        cursor = conn.cursor()
+    def get_player_statistics(self, player_name: str) -> Dict[str, Any]:
+        """
+        Get statistics for a specific player
         
-        # Convert route list to JSON string
-        route_json = json.dumps(route)
+        Args:
+            player_name: Name of the player
         
-        # Get current timestamp
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        Returns:
+            Dictionary containing player statistics
+        """
+        try:
+            conn = sqlite3.connect(self.db_file)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            # Get total games played
+            cursor.execute('''
+            SELECT COUNT(*) as games_played FROM game_results
+            WHERE player_name = ?
+            ''', (player_name,))
+            
+            result = dict(cursor.fetchone())
+            games_played = result['games_played']
+            
+            if games_played == 0:
+                return {"player_name": player_name, "games_played": 0}
+            
+            # Get correct predictions
+            cursor.execute('''
+            SELECT COUNT(*) as correct_predictions FROM game_results
+            WHERE player_name = ? AND is_prediction_correct = 1
+            ''', (player_name,))
+            
+            result = dict(cursor.fetchone())
+            correct_predictions = result['correct_predictions']
+            
+            # Get algorithm distribution
+            cursor.execute('''
+            SELECT winning_algorithm, COUNT(*) as count FROM game_results
+            WHERE player_name = ?
+            GROUP BY winning_algorithm
+            ORDER BY count DESC
+            ''', (player_name,))
+            
+            algorithm_distribution = {}
+            for row in cursor.fetchall():
+                algorithm_distribution[row['winning_algorithm']] = row['count']
+            
+            # Get average route length
+            cursor.execute('''
+            SELECT AVG(route_length) as avg_length FROM game_results
+            WHERE player_name = ?
+            ''', (player_name,))
+            
+            result = dict(cursor.fetchone())
+            avg_route_length = result['avg_length']
+            
+            return {
+                "player_name": player_name,
+                "games_played": games_played,
+                "correct_predictions": correct_predictions,
+                "prediction_accuracy": (correct_predictions / games_played) if games_played > 0 else 0,
+                "algorithm_distribution": algorithm_distribution,
+                "average_route_length": avg_route_length
+            }
         
-        # Insert the result
-        cursor.execute('''
-        INSERT INTO game_results 
-        (player_name, home_city, cities_visited, route, route_length, algorithm, execution_time, timestamp)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (player_name, home_city, cities_visited, route_json, route_length, algorithm, execution_time, timestamp))
+        except sqlite3.Error as e:
+            logger.error(f"Error retrieving player statistics: {e}")
+            return {"player_name": player_name, "error": str(e)}
         
-        conn.commit()
-        conn.close()
+        finally:
+            if conn:
+                conn.close()
     
-    def get_high_scores(self, limit=10):
-        """Get the top scores from the database"""
-        conn = sqlite3.connect(self.db_file)
-        cursor = conn.cursor()
+    def get_leaderboard(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """
+        Get a leaderboard of players based on their prediction accuracy
         
-        cursor.execute('''
-        SELECT player_name, home_city, cities_visited, route_length, algorithm, execution_time
-        FROM game_results
-        ORDER BY route_length ASC, execution_time ASC
-        LIMIT ?
-        ''', (limit,))
+        Args:
+            limit: Maximum number of players to include
         
-        results = cursor.fetchall()
-        conn.close()
+        Returns:
+            List of dictionaries containing player rankings
+        """
+        try:
+            conn = sqlite3.connect(self.db_file)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+            SELECT 
+                player_name,
+                COUNT(*) as games_played,
+                SUM(CASE WHEN is_prediction_correct = 1 THEN 1 ELSE 0 END) as correct_predictions
+            FROM game_results
+            GROUP BY player_name
+            HAVING games_played >= 3
+            ORDER BY (correct_predictions * 1.0 / games_played) DESC, games_played DESC
+            LIMIT ?
+            ''', (limit,))
+            
+            leaderboard = []
+            for i, row in enumerate(cursor.fetchall(), 1):
+                entry = dict(row)
+                entry['rank'] = i
+                entry['accuracy'] = (entry['correct_predictions'] / entry['games_played']) if entry['games_played'] > 0 else 0
+                leaderboard.append(entry)
+            
+            return leaderboard
         
-        return results
+        except sqlite3.Error as e:
+            logger.error(f"Error retrieving leaderboard: {e}")
+            return []
+        
+        finally:
+            if conn:
+                conn.close()
     
-    def get_player_history(self, player_name):
-        """Get history of a specific player"""
-        conn = sqlite3.connect(self.db_file)
-        cursor = conn.cursor()
+    def clear_data(self) -> bool:
+        """
+        Clear all data from the database (for testing or resetting)
         
-        cursor.execute('''
-        SELECT home_city, cities_visited, route_length, algorithm, execution_time, timestamp
-        FROM game_results
-        WHERE player_name = ?
-        ORDER BY timestamp DESC
-        ''', (player_name,))
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            conn = sqlite3.connect(self.db_file)
+            cursor = conn.cursor()
+            
+            cursor.execute('DELETE FROM game_results')
+            conn.commit()
+            
+            logger.info("All game data cleared from database")
+            return True
         
-        results = cursor.fetchall()
-        conn.close()
+        except sqlite3.Error as e:
+            logger.error(f"Error clearing database: {e}")
+            return False
         
-        return results
-    
-    def get_algorithm_stats(self):
-        """Get statistics about algorithm performance"""
-        conn = sqlite3.connect(self.db_file)
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-        SELECT algorithm, 
-               AVG(execution_time) as avg_time,
-               MIN(execution_time) as min_time,
-               MAX(execution_time) as max_time,
-               COUNT(*) as usage_count
-        FROM game_results
-        GROUP BY algorithm
-        ORDER BY avg_time ASC
-        ''')
-        
-        results = cursor.fetchall()
-        conn.close()
-        
-        return results
+        finally:
+            if conn:
+                conn.close()
