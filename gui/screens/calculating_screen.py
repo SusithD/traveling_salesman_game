@@ -5,7 +5,7 @@ import logging
 import time
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, 
-    QFrame, QProgressBar, QGraphicsOpacityEffect
+    QFrame, QProgressBar, QGraphicsOpacityEffect, QGraphicsDropShadowEffect
 )
 from PyQt5.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve
 from PyQt5.QtGui import QColor, QFont
@@ -43,197 +43,316 @@ class CalculatingScreen(QWidget):
     
     def setup_ui(self):
         """Setup the UI components"""
-        # Main layout
+        # Main layout with center alignment
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(40, 40, 40, 40)
         main_layout.setSpacing(20)
+        main_layout.setAlignment(Qt.AlignCenter)
         
-        # Create container
-        container = QFrame()
-        container.setStyleSheet("""
-            background-color: #111111;
-            border: 2px solid #333333;
-            border-radius: 15px;
-            padding: 20px;
+        # Create central container frame with modern styling
+        central_frame = QFrame()
+        central_frame.setObjectName("calculatingContainer")
+        central_frame.setMinimumWidth(1000)
+        central_frame.setMaximumWidth(1200)
+        central_frame.setStyleSheet("""
+            #calculatingContainer {
+                background-color: rgba(26, 26, 26, 0.7);
+                border-radius: 20px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+            }
         """)
-        container_layout = QVBoxLayout(container)
-        container_layout.setContentsMargins(30, 30, 30, 30)
+        
+        container_layout = QVBoxLayout(central_frame)
+        container_layout.setContentsMargins(40, 40, 40, 40)
         container_layout.setSpacing(25)
         
-        # Header
-        header_layout = QHBoxLayout()
+        # Header with calculation icon
+        header_frame = QFrame()
+        header_frame.setObjectName("headerFrame")
+        header_frame.setStyleSheet("""
+            #headerFrame {
+                background-color: rgba(46, 204, 113, 0.15);
+                border-radius: 15px;
+            }
+        """)
+        header_layout = QHBoxLayout(header_frame)
+        header_layout.setContentsMargins(20, 15, 20, 15)
         
+        # Left side - Title with icon
+        header_left = QHBoxLayout()
+        
+        # Calculation icon
         calculating_icon = QLabel("⚙️")
+        calculating_icon.setFixedSize(60, 60)
+        calculating_icon.setObjectName("calculatingIcon")
         calculating_icon.setStyleSheet("""
-            font-size: 36px;
-            padding: 10px;
-            background-color: #16a085;
-            color: white;
-            border-radius: 10px;
+            #calculatingIcon {
+                font-size: 30px;
+                background-color: #2ecc71;
+                color: white;
+                border-radius: 30px;
+                margin-right: 15px;
+            }
         """)
-        header_layout.addWidget(calculating_icon)
+        calculating_icon.setAlignment(Qt.AlignCenter)
+        header_left.addWidget(calculating_icon)
         
-        header_text = QVBoxLayout()
-        title = QLabel("Calculating Optimal Routes")
+        # Title and subtitle
+        title_layout = QVBoxLayout()
+        title_layout.setSpacing(5)
+        
+        title = QLabel("CALCULATING ROUTES")
+        title.setObjectName("calculatingTitle")
         title.setStyleSheet("""
-            color: white;
-            font-size: 24px;
-            font-weight: bold;
+            #calculatingTitle {
+                color: white;
+                font-size: 22px;
+                font-weight: bold;
+                letter-spacing: 1px;
+            }
         """)
-        header_text.addWidget(title)
+        title_layout.addWidget(title)
         
-        subtitle = QLabel("Please wait while the algorithms work their magic...")
-        subtitle.setStyleSheet("color: #aaaaaa; font-size: 16px;")
-        header_text.addWidget(subtitle)
+        subtitle = QLabel("Our algorithms are finding the optimal routes")
+        subtitle.setObjectName("calculatingSubtitle")
+        subtitle.setStyleSheet("""
+            #calculatingSubtitle {
+                color: #BBBBBB;
+                font-size: 14px;
+            }
+        """)
+        title_layout.addWidget(subtitle)
         
-        header_layout.addLayout(header_text)
+        header_left.addLayout(title_layout)
+        header_layout.addLayout(header_left)
         header_layout.addStretch()
         
-        container_layout.addLayout(header_layout)
+        container_layout.addWidget(header_frame)
         
-        # Add separator
+        # Stylish separator
         separator = QFrame()
         separator.setFrameShape(QFrame.HLine)
-        separator.setFrameShadow(QFrame.Sunken)
-        separator.setStyleSheet("background-color: #333333; height: 1px;")
-        container_layout.addWidget(separator)
-        
-        # Calculation animation area
-        animation_frame = QFrame()
-        animation_frame.setStyleSheet("""
-            background-color: #222222;
-            border-radius: 15px;
-            padding: 30px;
+        separator.setStyleSheet("""
+            background-color: #2ecc71;
+            max-width: 150px;
+            height: 3px;
+            margin: 5px;
         """)
-        animation_layout = QVBoxLayout(animation_frame)
-        animation_layout.setSpacing(30)
+        container_layout.addWidget(separator, 0, Qt.AlignCenter)
         
-        # Animated processing status
-        self.status_label = QLabel("Initializing...")
-        self.status_label.setStyleSheet("""
-            color: #2ecc71;
-            font-size: 18px;
-            font-weight: bold;
-        """)
-        self.status_label.setAlignment(Qt.AlignCenter)
-        animation_layout.addWidget(self.status_label)
-        
-        # Progress bar
-        self.progress_bar = QProgressBar()
-        self.progress_bar.setRange(0, 100)
-        self.progress_bar.setValue(0)
-        self.progress_bar.setTextVisible(False)
-        self.progress_bar.setMinimumHeight(15)
-        self.progress_bar.setStyleSheet("""
-            QProgressBar {
-                border: none;
-                border-radius: 7px;
-                background-color: #2c3e50;
-                margin: 10px 0;
-            }
-            
-            QProgressBar::chunk {
-                background-color: #2ecc71;
-                border-radius: 7px;
+        # User prediction reminder with updated styling
+        prediction_frame = QFrame()
+        prediction_frame.setObjectName("predictionFrame")
+        prediction_frame.setStyleSheet("""
+            #predictionFrame {
+                background-color: rgba(243, 156, 18, 0.15);
+                border: 1px solid rgba(243, 156, 18, 0.3);
+                border-radius: 12px;
             }
         """)
-        animation_layout.addWidget(self.progress_bar)
+        prediction_layout = QVBoxLayout(prediction_frame)
+        prediction_layout.setContentsMargins(20, 15, 20, 15)
         
-        # Processing details
-        self.detail_label = QLabel("Preparing to solve the Traveling Salesman Problem...")
-        self.detail_label.setWordWrap(True)
-        self.detail_label.setStyleSheet("""
-            color: #bbb;
-            font-size: 14px;
+        prediction_title = QLabel("YOUR PREDICTION")
+        prediction_title.setObjectName("predictionTitle")
+        prediction_title.setStyleSheet("""
+            #predictionTitle {
+                color: #f39c12;
+                font-size: 14px;
+                font-weight: bold;
+                letter-spacing: 1px;
+            }
         """)
-        self.detail_label.setAlignment(Qt.AlignCenter)
-        animation_layout.addWidget(self.detail_label)
+        prediction_title.setAlignment(Qt.AlignCenter)
+        prediction_layout.addWidget(prediction_title)
         
-        # Add some space
-        animation_layout.addStretch()
-        
-        # Algorithms being tested
-        algo_title = QLabel("Testing Algorithms:")
-        algo_title.setStyleSheet("color: white; font-size: 16px; font-weight: bold;")
-        animation_layout.addWidget(algo_title)
-        
-        # Algorithm indicators
-        algo_frame = QFrame()
-        algo_frame.setStyleSheet("""
-            background-color: #1a1a1a;
-            border-radius: 10px;
-            padding: 15px;
-        """)
-        algo_layout = QHBoxLayout(algo_frame)
-        
-        # Brute Force indicator
-        self.bf_indicator = self.create_algo_indicator("Brute Force", "#c0392b", "WAITING")
-        algo_layout.addWidget(self.bf_indicator)
-        
-        # Nearest Neighbor indicator
-        self.nn_indicator = self.create_algo_indicator("Nearest Neighbor", "#2980b9", "WAITING")
-        algo_layout.addWidget(self.nn_indicator)
-        
-        # Dynamic Programming indicator
-        self.dp_indicator = self.create_algo_indicator("Dynamic Programming", "#27ae60", "WAITING")
-        algo_layout.addWidget(self.dp_indicator)
-        
-        animation_layout.addWidget(algo_frame)
-        
-        # Your prediction reminder
-        self.prediction_label = QLabel()
+        self.prediction_label = QLabel("You predicted that Brute Force will find the shortest route")
+        self.prediction_label.setObjectName("predictionLabel")
         self.prediction_label.setStyleSheet("""
-            color: #f39c12;
-            font-size: 14px;
-            font-style: italic;
-            padding: 10px;
-            background-color: rgba(243, 156, 18, 0.1);
-            border-radius: 5px;
-            margin-top: 15px;
-        """)
-        self.prediction_label.setAlignment(Qt.AlignCenter)
-        animation_layout.addWidget(self.prediction_label)
-        
-        # Done button (initially hidden)
-        self.done_button = QPushButton("Show Results →")
-        self.done_button.setStyleSheet("""
-            QPushButton {
-                background-color: #27ae60;
+            #predictionLabel {
                 color: white;
-                border: none;
-                border-radius: 5px;
-                padding: 10px 20px;
                 font-size: 16px;
                 font-weight: bold;
             }
-            QPushButton:hover {
-                background-color: #2ecc71;
+        """)
+        self.prediction_label.setAlignment(Qt.AlignCenter)
+        prediction_layout.addWidget(self.prediction_label)
+        
+        container_layout.addWidget(prediction_frame)
+        
+        # Status and progress indicators with improved styling
+        progress_frame = QFrame()
+        progress_frame.setObjectName("progressFrame")
+        progress_frame.setStyleSheet("""
+            #progressFrame {
+                background-color: rgba(33, 33, 33, 0.7);
+                border-radius: 15px;
+                padding: 5px;
             }
-            QPushButton:pressed {
+        """)
+        progress_layout = QVBoxLayout(progress_frame)
+        progress_layout.setContentsMargins(25, 25, 25, 25)
+        progress_layout.setSpacing(20)
+        
+        # Status section
+        status_layout = QVBoxLayout()
+        
+        self.status_label = QLabel("Initializing...")
+        self.status_label.setObjectName("statusLabel")
+        self.status_label.setStyleSheet("""
+            #statusLabel {
+                color: #2ecc71;
+                font-size: 18px;
+                font-weight: bold;
+                letter-spacing: 0.5px;
+            }
+        """)
+        self.status_label.setAlignment(Qt.AlignCenter)
+        status_layout.addWidget(self.status_label)
+        
+        # Detail label
+        self.detail_label = QLabel("Preparing to solve the Traveling Salesman Problem...")
+        self.detail_label.setObjectName("detailLabel")
+        self.detail_label.setWordWrap(True)
+        self.detail_label.setStyleSheet("""
+            #detailLabel {
+                color: #bbb;
+                font-size: 14px;
+                font-style: italic;
+                background-color: rgba(46, 204, 113, 0.1);
+                border-radius: 8px;
+                padding: 10px;
+            }
+        """)
+        self.detail_label.setAlignment(Qt.AlignCenter)
+        status_layout.addWidget(self.detail_label)
+        
+        progress_layout.addLayout(status_layout)
+        
+        # Modern progress bar
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setObjectName("progressBar")
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        self.progress_bar.setTextVisible(False)
+        self.progress_bar.setMinimumHeight(10)
+        self.progress_bar.setStyleSheet("""
+            #progressBar {
+                border: none;
+                border-radius: 5px;
+                background-color: rgba(46, 204, 113, 0.1);
+                margin: 5px 0;
+            }
+            
+            #progressBar::chunk {
+                background-color: #2ecc71;
+                border-radius: 5px;
+            }
+        """)
+        progress_layout.addWidget(self.progress_bar)
+        
+        # Algorithm status cards in HBoxLayout
+        algo_layout = QHBoxLayout()
+        algo_layout.setSpacing(20)
+        algo_layout.setAlignment(Qt.AlignCenter)
+        
+        # Brute Force card with improved styling
+        self.bf_indicator = self.create_algo_indicator(
+            "Brute Force", "#e74c3c", "WAITING", "🧮", "Tries all possible permutations"
+        )
+        algo_layout.addWidget(self.bf_indicator)
+        
+        # Nearest Neighbor card with improved styling
+        self.nn_indicator = self.create_algo_indicator(
+            "Nearest Neighbor", "#3498db", "WAITING", "📍", "Always picks closest unvisited city"
+        )
+        algo_layout.addWidget(self.nn_indicator)
+        
+        # Dynamic Programming card with improved styling
+        self.dp_indicator = self.create_algo_indicator(
+            "Dynamic Programming", "#2ecc71", "WAITING", "⚙️", "Uses optimal subproblems"
+        )
+        algo_layout.addWidget(self.dp_indicator)
+        
+        progress_layout.addLayout(algo_layout)
+        
+        # Add progress frame to container
+        container_layout.addWidget(progress_frame)
+        
+        # Done button with updated styling
+        self.done_button = QPushButton("SHOW RESULTS →")
+        self.done_button.setObjectName("doneButton")
+        self.done_button.setFixedSize(250, 50)
+        self.done_button.setStyleSheet("""
+            #doneButton {
+                background-color: #2ecc71;
+                color: white;
+                border: none;
+                border-radius: 12px;
+                padding: 12px 25px;
+                font-size: 14px;
+                font-weight: bold;
+                letter-spacing: 1px;
+                margin-top: 20px;
+            }
+            #doneButton:hover {
+                background-color: #27ae60;
+            }
+            #doneButton:pressed {
                 background-color: #219653;
             }
         """)
         self.done_button.clicked.connect(self.show_results)
         self.done_button.setVisible(False)  # Hide initially
-        animation_layout.addWidget(self.done_button, 0, Qt.AlignCenter)
-        
-        container_layout.addWidget(animation_frame)
+        container_layout.addWidget(self.done_button, 0, Qt.AlignCenter)
         
         # Add container to main layout
-        main_layout.addWidget(container)
-        
-    def create_algo_indicator(self, name, color, status="WAITING"):
-        """Create an indicator for algorithm status"""
+        main_layout.addWidget(central_frame, 0, Qt.AlignCenter)
+    
+    def create_algo_indicator(self, name, color, status="WAITING", icon="⚙️", description=""):
+        """Create an improved algorithm indicator card"""
         indicator = QFrame()
+        indicator.setObjectName(f"{name.replace(' ', '')}Card")
+        indicator.setFixedWidth(270)
         indicator.setStyleSheet(f"""
-            background-color: #222222;
-            border: 1px solid {color};
-            border-radius: 8px;
-            padding: 10px;
+            #{name.replace(' ', '')}Card {{
+                background-color: rgba(40, 40, 40, 0.7);
+                border: 1px solid {color};
+                border-radius: 12px;
+                padding: 0px;
+            }}
         """)
         indicator_layout = QVBoxLayout(indicator)
-        indicator_layout.setContentsMargins(10, 10, 10, 10)
-        indicator_layout.setSpacing(5)
+        indicator_layout.setContentsMargins(15, 15, 15, 15)
+        indicator_layout.setSpacing(10)
+        
+        # Header with icon and name
+        header_layout = QHBoxLayout()
+        
+        # Icon container
+        icon_frame = QFrame()
+        icon_frame.setObjectName(f"{name.replace(' ', '')}Icon")
+        icon_frame.setFixedSize(36, 36)
+        icon_frame.setStyleSheet(f"""
+            #{name.replace(' ', '')}Icon {{
+                background-color: {color};
+                border-radius: 18px;
+                margin-right: 10px;
+            }}
+        """)
+        icon_layout = QVBoxLayout(icon_frame)
+        icon_layout.setContentsMargins(0, 0, 0, 0)
+        
+        icon_label = QLabel(icon)
+        icon_label.setStyleSheet(f"""
+            font-size: 18px;
+            color: white;
+            padding: 0px;
+        """)
+        icon_label.setAlignment(Qt.AlignCenter)
+        icon_layout.addWidget(icon_label)
+        
+        header_layout.addWidget(icon_frame)
         
         # Algorithm name
         name_label = QLabel(name)
@@ -242,23 +361,53 @@ class CalculatingScreen(QWidget):
             font-weight: bold;
             font-size: 14px;
         """)
-        name_label.setAlignment(Qt.AlignCenter)
-        indicator_layout.addWidget(name_label)
+        header_layout.addWidget(name_label)
+        header_layout.addStretch()
         
-        # Status indicator
+        # Status pill
         status_label = QLabel(status)
-        status_label.setStyleSheet("""
-            color: #888888;
-            font-size: 12px;
-            padding: 3px 8px;
-            background-color: #333333;
-            border-radius: 4px;
+        status_label.setObjectName(f"{name.replace(' ', '')}Status")
+        status_label.setStyleSheet(f"""
+            #{name.replace(' ', '')}Status {{
+                color: #888888;
+                font-size: 12px;
+                font-weight: bold;
+                padding: 4px 10px;
+                background-color: #333333;
+                border-radius: 10px;
+            }}
         """)
         status_label.setAlignment(Qt.AlignCenter)
-        indicator_layout.addWidget(status_label)
+        header_layout.addWidget(status_label)
+        
+        indicator_layout.addLayout(header_layout)
+        
+        # Add description
+        desc_label = QLabel(description)
+        desc_label.setStyleSheet("""
+            color: #aaaaaa;
+            font-size: 12px;
+            font-style: italic;
+        """)
+        desc_label.setWordWrap(True)
+        desc_label.setAlignment(Qt.AlignCenter)
+        indicator_layout.addWidget(desc_label)
+        
+        # Progress indicator (initially empty)
+        progress_frame = QFrame()
+        progress_frame.setObjectName(f"{name.replace(' ', '')}Progress")
+        progress_frame.setFixedHeight(8)
+        progress_frame.setStyleSheet(f"""
+            #{name.replace(' ', '')}Progress {{
+                background-color: rgba({int(color[1:3], 16)}, {int(color[3:5], 16)}, {int(color[5:7], 16)}, 0.1);
+                border-radius: 4px;
+            }}
+        """)
+        indicator_layout.addWidget(progress_frame)
         
         # Save reference to status label
         indicator.status_label = status_label
+        indicator.progress_frame = progress_frame
         
         return indicator
     
@@ -271,32 +420,22 @@ class CalculatingScreen(QWidget):
         self.detail_label.setText("Preparing to solve the Traveling Salesman Problem...")
         
         # Reset algorithm indicators
-        self.bf_indicator.status_label.setText("WAITING")
-        self.bf_indicator.status_label.setStyleSheet("""
-            color: #888888;
-            font-size: 12px;
-            padding: 3px 8px;
-            background-color: #333333;
-            border-radius: 4px;
-        """)
-        
-        self.nn_indicator.status_label.setText("WAITING")
-        self.nn_indicator.status_label.setStyleSheet("""
-            color: #888888;
-            font-size: 12px;
-            padding: 3px 8px;
-            background-color: #333333;
-            border-radius: 4px;
-        """)
-        
-        self.dp_indicator.status_label.setText("WAITING")
-        self.dp_indicator.status_label.setStyleSheet("""
-            color: #888888;
-            font-size: 12px;
-            padding: 3px 8px;
-            background-color: #333333;
-            border-radius: 4px;
-        """)
+        for name, indicator in [("Brute Force", self.bf_indicator), 
+                               ("Nearest Neighbor", self.nn_indicator),
+                               ("Dynamic Programming", self.dp_indicator)]:
+            algoid = name.replace(" ", "")
+            indicator.status_label.setText("WAITING")
+            indicator.status_label.setObjectName(f"{algoid}Status")
+            indicator.status_label.setStyleSheet(f"""
+                #{algoid}Status {{
+                    color: #888888;
+                    font-size: 12px;
+                    font-weight: bold;
+                    padding: 4px 10px;
+                    background-color: #333333;
+                    border-radius: 10px;
+                }}
+            """)
         
         # Hide done button
         self.done_button.setVisible(False)
@@ -327,61 +466,106 @@ class CalculatingScreen(QWidget):
             
             # Update algorithm indicators
             if self.current_phase == 2:  # Running Brute Force
+                self.bf_indicator.status_label.setObjectName("BruteForceStatus")
                 self.bf_indicator.status_label.setText("RUNNING")
                 self.bf_indicator.status_label.setStyleSheet("""
-                    color: white;
-                    font-size: 12px;
-                    padding: 3px 8px;
-                    background-color: #c0392b;
-                    border-radius: 4px;
+                    #BruteForceStatus {
+                        color: white;
+                        font-size: 12px;
+                        font-weight: bold;
+                        padding: 4px 10px;
+                        background-color: #e74c3c;
+                        border-radius: 10px;
+                    }
+                """)
+                # Add progress animation
+                self.bf_indicator.progress_frame.setStyleSheet("""
+                    #BruteForceProgress {
+                        background-color: rgba(231, 76, 60, 0.3);
+                        border-radius: 4px;
+                    }
                 """)
             elif self.current_phase == 3:  # Running Nearest Neighbor
+                self.bf_indicator.status_label.setObjectName("BruteForceStatus")
                 self.bf_indicator.status_label.setText("DONE")
                 self.bf_indicator.status_label.setStyleSheet("""
-                    color: white;
-                    font-size: 12px;
-                    padding: 3px 8px;
-                    background-color: #555555;
-                    border-radius: 4px;
+                    #BruteForceStatus {
+                        color: white;
+                        font-size: 12px;
+                        font-weight: bold;
+                        padding: 4px 10px;
+                        background-color: #555555;
+                        border-radius: 10px;
+                    }
                 """)
                 
+                self.nn_indicator.status_label.setObjectName("NearestNeighborStatus")
                 self.nn_indicator.status_label.setText("RUNNING")
                 self.nn_indicator.status_label.setStyleSheet("""
-                    color: white;
-                    font-size: 12px;
-                    padding: 3px 8px;
-                    background-color: #2980b9;
-                    border-radius: 4px;
+                    #NearestNeighborStatus {
+                        color: white;
+                        font-size: 12px;
+                        font-weight: bold;
+                        padding: 4px 10px;
+                        background-color: #3498db;
+                        border-radius: 10px;
+                    }
+                """)
+                # Add progress animation
+                self.nn_indicator.progress_frame.setStyleSheet("""
+                    #NearestNeighborProgress {
+                        background-color: rgba(52, 152, 219, 0.3);
+                        border-radius: 4px;
+                    }
                 """)
             elif self.current_phase == 4:  # Running Dynamic Programming
+                self.nn_indicator.status_label.setObjectName("NearestNeighborStatus")
                 self.nn_indicator.status_label.setText("DONE")
                 self.nn_indicator.status_label.setStyleSheet("""
-                    color: white;
-                    font-size: 12px;
-                    padding: 3px 8px;
-                    background-color: #555555;
-                    border-radius: 4px;
+                    #NearestNeighborStatus {
+                        color: white;
+                        font-size: 12px;
+                        font-weight: bold;
+                        padding: 4px 10px;
+                        background-color: #555555;
+                        border-radius: 10px;
+                    }
                 """)
                 
+                self.dp_indicator.status_label.setObjectName("DynamicProgrammingStatus")
                 self.dp_indicator.status_label.setText("RUNNING")
                 self.dp_indicator.status_label.setStyleSheet("""
-                    color: white;
-                    font-size: 12px;
-                    padding: 3px 8px;
-                    background-color: #27ae60;
-                    border-radius: 4px;
+                    #DynamicProgrammingStatus {
+                        color: white;
+                        font-size: 12px;
+                        font-weight: bold;
+                        padding: 4px 10px;
+                        background-color: #2ecc71;
+                        border-radius: 10px;
+                    }
+                """)
+                # Add progress animation
+                self.dp_indicator.progress_frame.setStyleSheet("""
+                    #DynamicProgrammingProgress {
+                        background-color: rgba(46, 204, 113, 0.3);
+                        border-radius: 4px;
+                    }
                 """)
             elif self.current_phase == 5:  # Comparing results
+                self.dp_indicator.status_label.setObjectName("DynamicProgrammingStatus")
                 self.dp_indicator.status_label.setText("DONE")
                 self.dp_indicator.status_label.setStyleSheet("""
-                    color: white;
-                    font-size: 12px;
-                    padding: 3px 8px;
-                    background-color: #555555;
-                    border-radius: 4px;
+                    #DynamicProgrammingStatus {
+                        color: white;
+                        font-size: 12px;
+                        font-weight: bold;
+                        padding: 4px 10px;
+                        background-color: #555555;
+                        border-radius: 10px;
+                    }
                 """)
             
-            # Update detail label with random facts about algorithms
+            # Update detail label with facts about algorithms
             if self.current_phase == 0:
                 self.detail_label.setText("Analyzing the distances between all selected cities...")
             elif self.current_phase == 1:
@@ -395,8 +579,15 @@ class CalculatingScreen(QWidget):
             elif self.current_phase == 5:
                 self.detail_label.setText("Comparing results from all algorithms to determine the shortest route...")
             elif self.current_phase == 6:
-                self.detail_label.setText("All calculations complete! Click to see results.")
+                self.detail_label.setText("All calculations complete! Click the button below to see which algorithm performed best.")
                 self.done_button.setVisible(True)
+                
+                # Add completion effect to the done button
+                shadow = QGraphicsDropShadowEffect()
+                shadow.setBlurRadius(20)
+                shadow.setColor(QColor("#2ecc71"))
+                shadow.setOffset(0, 0)
+                self.done_button.setGraphicsEffect(shadow)
             
             self.current_phase += 1
             

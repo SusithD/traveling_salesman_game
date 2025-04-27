@@ -5,7 +5,7 @@ import logging
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, 
     QFrame, QTabWidget, QGraphicsDropShadowEffect, QSizePolicy,
-    QScrollArea
+    QScrollArea, QGraphicsOpacityEffect
 )
 from PyQt5.QtCore import Qt, QPropertyAnimation, QRect, QEasingCurve, QTimer
 from PyQt5.QtGui import QColor, QFont
@@ -30,216 +30,400 @@ class ResultsScreen(QWidget):
     
     def setup_ui(self):
         """Setup the UI components"""
-        # Main layout
+        # Main layout with center alignment
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(30, 30, 30, 30)
+        main_layout.setContentsMargins(40, 40, 40, 40)
         main_layout.setSpacing(20)
+        main_layout.setAlignment(Qt.AlignCenter)
         
-        # Set size policy for better scrolling behavior
-        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.MinimumExpanding)
-        
-        # Create main scroll area for the entire content
-        content_scroll = QScrollArea()
-        content_scroll.setWidgetResizable(True)
-        content_scroll.setFrameShape(QScrollArea.NoFrame)
-        content_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        content_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        content_scroll.setStyleSheet("""
-            background: transparent;
-            border: none;
+        # Create central container frame with modern styling
+        central_frame = QFrame()
+        central_frame.setObjectName("resultsContainer")
+        central_frame.setMinimumWidth(1000)
+        central_frame.setMaximumWidth(1200)
+        central_frame.setStyleSheet("""
+            #resultsContainer {
+                background-color: rgba(26, 26, 26, 0.7);
+                border-radius: 20px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+            }
         """)
         
-        # Create content widget for the scroll area
-        content_widget = QWidget()
-        content_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.MinimumExpanding)
-        content_layout = QVBoxLayout(content_widget)
-        content_layout.setContentsMargins(10, 10, 10, 10)
-        content_layout.setSpacing(20)
-        
-        # Create container with flexible sizing
-        container = QFrame()
-        container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        container.setStyleSheet("""
-            background-color: #111111;
-            border: 2px solid #333333;
-            border-radius: 15px;
-            padding: 20px;
-        """)
-        container_layout = QVBoxLayout(container)
-        container_layout.setContentsMargins(30, 30, 30, 30)
+        container_layout = QVBoxLayout(central_frame)
+        container_layout.setContentsMargins(40, 40, 40, 40)
         container_layout.setSpacing(25)
         
-        # Header with info
-        header_layout = QHBoxLayout()
+        # Header with results icon
+        header_frame = QFrame()
+        header_frame.setObjectName("headerFrame")
+        header_frame.setStyleSheet("""
+            #headerFrame {
+                background-color: rgba(155, 89, 182, 0.15);
+                border-radius: 15px;
+            }
+        """)
+        header_layout = QHBoxLayout(header_frame)
+        header_layout.setContentsMargins(20, 15, 20, 15)
         
+        # Left side - Title with icon
+        header_left = QHBoxLayout()
+        
+        # Results icon
         results_icon = QLabel("🏆")
+        results_icon.setFixedSize(60, 60)
+        results_icon.setObjectName("resultsIcon")
         results_icon.setStyleSheet("""
-            font-size: 36px;
-            padding: 10px;
-            background-color: #9b59b6;
-            color: white;
-            border-radius: 10px;
+            #resultsIcon {
+                font-size: 30px;
+                background-color: #9b59b6;
+                color: white;
+                border-radius: 30px;
+                margin-right: 15px;
+            }
         """)
-        header_layout.addWidget(results_icon)
+        results_icon.setAlignment(Qt.AlignCenter)
+        header_left.addWidget(results_icon)
         
-        header_text = QVBoxLayout()
-        title = QLabel("Results")
+        # Title and subtitle
+        title_layout = QVBoxLayout()
+        title_layout.setSpacing(5)
+        
+        title = QLabel("ALGORITHM RESULTS")
+        title.setObjectName("resultsTitle")
         title.setStyleSheet("""
-            color: white;
-            font-size: 24px;
-            font-weight: bold;
+            #resultsTitle {
+                color: white;
+                font-size: 22px;
+                font-weight: bold;
+                letter-spacing: 1px;
+            }
         """)
-        header_text.addWidget(title)
+        title_layout.addWidget(title)
         
-        subtitle = QLabel("Algorithm performance comparison")
-        subtitle.setStyleSheet("color: #aaaaaa; font-size: 16px;")
-        header_text.addWidget(subtitle)
+        subtitle = QLabel("See how each algorithm performed in solving your TSP")
+        subtitle.setObjectName("resultsSubtitle")
+        subtitle.setStyleSheet("""
+            #resultsSubtitle {
+                color: #BBBBBB;
+                font-size: 14px;
+            }
+        """)
+        title_layout.addWidget(subtitle)
         
-        header_layout.addLayout(header_text)
+        header_left.addLayout(title_layout)
+        header_layout.addLayout(header_left)
         header_layout.addStretch()
         
-        # Prediction result indicator
-        self.prediction_result = QLabel()
-        self.prediction_result.setStyleSheet("""
-            padding: 8px 15px;
-            border-radius: 5px;
-            font-weight: bold;
-            font-size: 14px;
+        # Prediction result indicator on right side of header
+        prediction_container = QFrame()
+        prediction_container.setObjectName("predictionContainer")
+        prediction_container.setStyleSheet("""
+            #predictionContainer {
+                background-color: rgba(255, 255, 255, 0.1);
+                border-radius: 10px;
+                padding: 5px 15px;
+            }
         """)
-        header_layout.addWidget(self.prediction_result)
+        prediction_layout = QVBoxLayout(prediction_container)
+        prediction_layout.setContentsMargins(10, 10, 10, 10)
+        prediction_layout.setSpacing(5)
         
-        container_layout.addLayout(header_layout)
+        prediction_title = QLabel("YOUR PREDICTION")
+        prediction_title.setStyleSheet("""
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 12px;
+            font-weight: bold;
+        """)
+        prediction_title.setAlignment(Qt.AlignCenter)
+        prediction_layout.addWidget(prediction_title)
         
-        # Add separator
+        self.prediction_result = QLabel("Waiting for results...")
+        self.prediction_result.setObjectName("predictionResult")
+        self.prediction_result.setStyleSheet("""
+            #predictionResult {
+                color: white;
+                font-size: 14px;
+                font-weight: bold;
+            }
+        """)
+        self.prediction_result.setAlignment(Qt.AlignCenter)
+        prediction_layout.addWidget(self.prediction_result)
+        
+        header_layout.addWidget(prediction_container)
+        container_layout.addWidget(header_frame)
+        
+        # Stylish separator
         separator = QFrame()
         separator.setFrameShape(QFrame.HLine)
-        separator.setFrameShadow(QFrame.Sunken)
-        separator.setStyleSheet("background-color: #333333; height: 1px;")
-        container_layout.addWidget(separator)
+        separator.setStyleSheet("""
+            background-color: #9b59b6;
+            max-width: 150px;
+            height: 3px;
+            margin: 5px;
+        """)
+        container_layout.addWidget(separator, 0, Qt.AlignCenter)
         
-        # Journey summary
+        # Journey summary with improved styling
+        journey_frame = QFrame()
+        journey_frame.setObjectName("journeyFrame")
+        journey_frame.setStyleSheet("""
+            #journeyFrame {
+                background-color: rgba(33, 33, 33, 0.7);
+                border-radius: 15px;
+                padding: 15px;
+            }
+        """)
+        journey_layout = QVBoxLayout(journey_frame)
+        journey_layout.setContentsMargins(20, 20, 20, 20)
+        journey_layout.setSpacing(15)
+        
+        journey_title = QLabel("YOUR JOURNEY")
+        journey_title.setObjectName("journeyTitle")
+        journey_title.setStyleSheet("""
+            #journeyTitle {
+                color: #9b59b6;
+                font-size: 16px;
+                font-weight: bold;
+                letter-spacing: 1px;
+            }
+        """)
+        journey_title.setAlignment(Qt.AlignCenter)
+        journey_layout.addWidget(journey_title)
+        
         self.journey_summary = QLabel()
+        self.journey_summary.setObjectName("journeyDetails")
         self.journey_summary.setWordWrap(True)
         self.journey_summary.setStyleSheet("""
-            color: white;
-            font-size: 15px;
-            padding: 10px;
-            background-color: #2c3e50;
-            border-radius: 8px;
+            #journeyDetails {
+                color: #DDDDDD;
+                font-size: 15px;
+                line-height: 150%;
+                background-color: rgba(155, 89, 182, 0.1);
+                border: 1px solid rgba(155, 89, 182, 0.2);
+                border-radius: 10px;
+                padding: 15px;
+            }
         """)
-        container_layout.addWidget(self.journey_summary)
+        self.journey_summary.setAlignment(Qt.AlignCenter)
+        journey_layout.addWidget(self.journey_summary)
         
-        # Algorithm results displayed in stages
-        results_scroll_area = QScrollArea()
-        results_scroll_area.setWidgetResizable(True)
-        results_scroll_area.setFrameShape(QScrollArea.NoFrame)
-        results_scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        results_scroll_area.setStyleSheet("""
-            background: transparent;
-            border: none;
+        container_layout.addWidget(journey_frame)
+        
+        # Algorithm results section with improved styling
+        results_frame = QFrame()
+        results_frame.setObjectName("resultsFrame")
+        results_frame.setMinimumHeight(400)  # Ensure sufficient space for algorithm cards
+        results_frame.setStyleSheet("""
+            #resultsFrame {
+                background-color: rgba(33, 33, 33, 0.7);
+                border-radius: 15px;
+                padding: 5px;
+            }
+        """)
+        results_layout = QVBoxLayout(results_frame)
+        results_layout.setContentsMargins(20, 20, 20, 20)
+        results_layout.setSpacing(20)
+        
+        results_title = QLabel("ALGORITHM PERFORMANCE")
+        results_title.setObjectName("algorithmsTitle")
+        results_title.setStyleSheet("""
+            #algorithmsTitle {
+                color: white;
+                font-size: 16px;
+                font-weight: bold;
+                letter-spacing: 1px;
+            }
+        """)
+        results_title.setAlignment(Qt.AlignCenter)
+        results_layout.addWidget(results_title)
+        
+        # Algorithm cards container in a scrollable area
+        results_scroll = QScrollArea()
+        results_scroll.setObjectName("resultsScroll")
+        results_scroll.setWidgetResizable(True)
+        results_scroll.setFrameShape(QScrollArea.NoFrame)
+        results_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        results_scroll.setStyleSheet("""
+            #resultsScroll {
+                border: none;
+                background: transparent;
+            }
+            QScrollBar:vertical {
+                border: none;
+                background: rgba(51, 51, 51, 0.5);
+                width: 8px;
+                border-radius: 4px;
+                margin: 0px;
+            }
+            QScrollBar::handle:vertical {
+                background: #666666;
+                min-height: 20px;
+                border-radius: 4px;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
         """)
         
         self.results_container = QWidget()
-        self.results_container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.MinimumExpanding)
+        self.results_container.setObjectName("cardsContainer")
         self.results_container.setStyleSheet("""
-            background-color: #222222;
-            border-radius: 10px;
-            padding: 15px;
+            #cardsContainer {
+                background-color: transparent;
+                padding: 5px;
+            }
         """)
-        results_layout = QVBoxLayout(self.results_container)
-        results_layout.setContentsMargins(15, 15, 15, 15)
-        results_layout.setSpacing(15)
+        cards_layout = QVBoxLayout(self.results_container)
+        cards_layout.setContentsMargins(5, 5, 5, 5)
+        cards_layout.setSpacing(15)
         
-        # Algorithm cards container (will be populated dynamically)
+        # Algorithm cards will be added here dynamically
         self.algo_cards_layout = QVBoxLayout()
         self.algo_cards_layout.setSpacing(15)
-        results_layout.addLayout(self.algo_cards_layout)
+        cards_layout.addLayout(self.algo_cards_layout)
+        cards_layout.addStretch()
         
-        # Set the container as the scroll area widget
-        results_scroll_area.setWidget(self.results_container)
+        results_scroll.setWidget(self.results_container)
+        results_layout.addWidget(results_scroll)
         
-        # Make sure the scroll area has a proper height
-        results_scroll_area.setMinimumHeight(300)
-        results_scroll_area.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        container_layout.addWidget(results_frame, 1)
         
-        container_layout.addWidget(results_scroll_area, 1)
-        
-        # Winner section (initially hidden)
+        # Winner section with improved styling
         self.winner_frame = QFrame()
+        self.winner_frame.setObjectName("winnerFrame")
         self.winner_frame.setStyleSheet("""
-            background-color: #27ae60;
-            border-radius: 10px;
-            padding: 15px;
+            #winnerFrame {
+                background-color: rgba(39, 174, 96, 0.2);
+                border: 1px solid rgba(39, 174, 96, 0.3);
+                border-radius: 15px;
+                padding: 15px;
+            }
         """)
         self.winner_frame.setVisible(False)
         winner_layout = QVBoxLayout(self.winner_frame)
+        winner_layout.setContentsMargins(20, 20, 20, 20)
+        winner_layout.setSpacing(15)
         
-        winner_title = QLabel("Winning Algorithm")
-        winner_title.setStyleSheet("""
+        # Trophy icon with crown
+        trophy_container = QFrame()
+        trophy_container.setFixedSize(80, 80)
+        trophy_container.setStyleSheet("""
+            background-color: #27ae60;
+            border-radius: 40px;
+            margin-bottom: 10px;
+        """)
+        trophy_layout = QVBoxLayout(trophy_container)
+        trophy_layout.setContentsMargins(0, 0, 0, 0)
+        trophy_layout.setAlignment(Qt.AlignCenter)
+        
+        trophy_icon = QLabel("👑")
+        trophy_icon.setStyleSheet("""
+            font-size: 40px;
             color: white;
-            font-size: 18px;
-            font-weight: bold;
+        """)
+        trophy_icon.setAlignment(Qt.AlignCenter)
+        trophy_layout.addWidget(trophy_icon)
+        
+        winner_layout.addWidget(trophy_container, 0, Qt.AlignCenter)
+        
+        winner_title = QLabel("WINNING ALGORITHM")
+        winner_title.setObjectName("winnerTitle")
+        winner_title.setStyleSheet("""
+            #winnerTitle {
+                color: #27ae60;
+                font-size: 16px;
+                font-weight: bold;
+                letter-spacing: 1px;
+            }
         """)
         winner_title.setAlignment(Qt.AlignCenter)
         winner_layout.addWidget(winner_title)
         
         self.winner_label = QLabel()
+        self.winner_label.setObjectName("winnerName")
         self.winner_label.setStyleSheet("""
-            color: white;
-            font-size: 24px;
-            font-weight: bold;
+            #winnerName {
+                color: white;
+                font-size: 24px;
+                font-weight: bold;
+            }
         """)
         self.winner_label.setAlignment(Qt.AlignCenter)
+        
+        # Add shadow to winner name for emphasis
+        winner_shadow = QGraphicsDropShadowEffect()
+        winner_shadow.setBlurRadius(15)
+        winner_shadow.setColor(QColor("#27ae60"))
+        winner_shadow.setOffset(0, 0)
+        self.winner_label.setGraphicsEffect(winner_shadow)
+        
         winner_layout.addWidget(self.winner_label)
         
         self.winner_stats = QLabel()
+        self.winner_stats.setObjectName("winnerStats")
         self.winner_stats.setWordWrap(True)
         self.winner_stats.setStyleSheet("""
-            color: rgba(255, 255, 255, 0.8);
-            font-size: 14px;
+            #winnerStats {
+                color: #DDDDDD;
+                font-size: 14px;
+                background-color: rgba(39, 174, 96, 0.1);
+                border-radius: 10px;
+                padding: 10px;
+            }
         """)
         self.winner_stats.setAlignment(Qt.AlignCenter)
         winner_layout.addWidget(self.winner_stats)
         
         container_layout.addWidget(self.winner_frame)
         
-        # Navigation buttons
+        # Button area with updated styling
         button_layout = QHBoxLayout()
-        button_layout.addStretch()
+        button_layout.setSpacing(15)
+        button_layout.setAlignment(Qt.AlignCenter)
         
-        restart_button = QPushButton("New Game")
-        restart_button.setStyleSheet("""
-            QPushButton {
-                background-color: #3498db;
+        back_button = QPushButton("← NEW GAME")
+        back_button.setObjectName("backButton")
+        back_button.setFixedSize(180, 50)
+        back_button.setStyleSheet("""
+            #backButton {
+                background-color: rgba(45, 45, 45, 0.7);
                 color: white;
                 border: none;
-                border-radius: 5px;
-                padding: 10px 15px;
+                border-radius: 12px;
+                padding: 12px 20px;
                 font-size: 14px;
+                font-weight: bold;
+                letter-spacing: 1px;
             }
-            QPushButton:hover {
-                background-color: #2980b9;
+            #backButton:hover {
+                background-color: rgba(60, 60, 60, 0.8);
+            }
+            #backButton:pressed {
+                background-color: rgba(35, 35, 35, 0.9);
             }
         """)
-        restart_button.clicked.connect(self.restart_game)
-        button_layout.addWidget(restart_button)
+        back_button.clicked.connect(self.restart_game)
+        button_layout.addWidget(back_button)
         
-        continue_button = QPushButton("Summary →")
+        continue_button = QPushButton("VIEW SUMMARY →")
+        continue_button.setObjectName("continueButton")
+        continue_button.setFixedSize(250, 50)
         continue_button.setStyleSheet("""
-            QPushButton {
+            #continueButton {
                 background-color: #9b59b6;
                 color: white;
                 border: none;
-                border-radius: 5px;
-                padding: 10px 20px;
-                font-size: 16px;
+                border-radius: 12px;
+                padding: 12px 25px;
+                font-size: 14px;
                 font-weight: bold;
+                letter-spacing: 1px;
             }
-            QPushButton:hover {
+            #continueButton:hover {
                 background-color: #8e44ad;
             }
-            QPushButton:pressed {
-                background-color: #6c3483;
+            #continueButton:pressed {
+                background-color: #7d3c98;
             }
         """)
         continue_button.clicked.connect(self.show_summary)
@@ -247,137 +431,208 @@ class ResultsScreen(QWidget):
         
         container_layout.addLayout(button_layout)
         
-        # Add container to content layout
-        content_layout.addWidget(container)
-        
-        # Set the content widget as the scroll area widget
-        content_scroll.setWidget(content_widget)
-        
-        # Add scroll area to main layout
-        main_layout.addWidget(content_scroll)
+        # Add container to main layout
+        main_layout.addWidget(central_frame, 0, Qt.AlignCenter)
     
     def create_algorithm_card(self, algorithm, result):
-        """Create a card showing algorithm results"""
-        card = QFrame()
-        card.setObjectName(f"{algorithm.lower().replace(' ', '_')}_card")
-        card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        """Create a card showing algorithm results with improved styling"""
+        # Determine color and styling based on algorithm
+        colors = {
+            "Brute Force": "#e74c3c",
+            "Nearest Neighbor": "#3498db",
+            "Dynamic Programming": "#2ecc71"
+        }
+        color = colors.get(algorithm, "#9b59b6")  # Default to purple if unknown
         
-        if self.flow_manager.game_state.shortest_algorithm == algorithm:
-            # Highlight the winning algorithm
-            card.setStyleSheet("""
-                background-color: rgba(39, 174, 96, 0.2);
-                border: 2px solid #27ae60;
-                border-radius: 10px;
-                padding: 15px;
-                margin: 5px 0;
+        # Check if this is the winning algorithm
+        is_winner = self.flow_manager.game_state.shortest_algorithm == algorithm
+        
+        card = QFrame()
+        card.setObjectName(f"{algorithm.replace(' ', '')}Card")
+        
+        # Apply styling based on whether it's the winning algorithm
+        if is_winner:
+            card.setStyleSheet(f"""
+                #{algorithm.replace(' ', '')}Card {{
+                    background-color: rgba(39, 174, 96, 0.2);
+                    border: 2px solid #27ae60;
+                    border-radius: 15px;
+                    padding: 0px;
+                    margin: 5px 0px;
+                }}
             """)
         else:
-            card.setStyleSheet("""
-                background-color: #1a1a1a;
-                border: 1px solid #333333;
-                border-radius: 10px;
-                padding: 15px;
-                margin: 5px 0;
+            card.setStyleSheet(f"""
+                #{algorithm.replace(' ', '')}Card {{
+                    background-color: rgba(40, 40, 40, 0.7);
+                    border: 1px solid {color};
+                    border-radius: 15px;
+                    padding: 0px;
+                    margin: 5px 0px;
+                }}
             """)
         
-        # Add card shadow effect
+        # Add shadow effect
         shadow = QGraphicsDropShadowEffect()
         shadow.setBlurRadius(15)
         shadow.setColor(QColor(0, 0, 0, 80))
         shadow.setOffset(0, 3)
         card.setGraphicsEffect(shadow)
         
-        card_layout = QVBoxLayout(card)
-        card_layout.setSpacing(10)
+        card_layout = QHBoxLayout(card)
+        card_layout.setContentsMargins(20, 20, 20, 20)
+        card_layout.setSpacing(20)
         
-        # Algorithm name and performance
-        header_layout = QHBoxLayout()
+        # Left side - Icon and algorithm info
+        left_layout = QHBoxLayout()
+        left_layout.setSpacing(15)
         
-        # Algorithm name with indicator
-        name_layout = QVBoxLayout()
+        # Icon based on algorithm
+        icons = {
+            "Brute Force": "🧮",
+            "Nearest Neighbor": "📍",
+            "Dynamic Programming": "⚙️"
+        }
+        icon = icons.get(algorithm, "🔍")  # Default icon if unknown
         
-        name = QLabel(algorithm)
-        name.setStyleSheet("""
-            color: white;
-            font-size: 18px;
-            font-weight: bold;
+        icon_frame = QFrame()
+        icon_frame.setObjectName(f"{algorithm.replace(' ', '')}Icon")
+        icon_frame.setFixedSize(70, 70)
+        icon_frame.setStyleSheet(f"""
+            #{algorithm.replace(' ', '')}Icon {{
+                background-color: {color};
+                border-radius: 35px;
+            }}
         """)
-        name_layout.addWidget(name)
+        icon_layout = QVBoxLayout(icon_frame)
+        icon_layout.setContentsMargins(0, 0, 0, 0)
         
+        icon_label = QLabel(icon)
+        icon_label.setStyleSheet("""
+            font-size: 30px;
+            color: white;
+        """)
+        icon_label.setAlignment(Qt.AlignCenter)
+        icon_layout.addWidget(icon_label)
+        
+        left_layout.addWidget(icon_frame)
+        
+        # Algorithm details
+        algo_details = QVBoxLayout()
+        algo_details.setSpacing(5)
+        
+        algo_name = QLabel(algorithm)
+        algo_name.setObjectName(f"{algorithm.replace(' ', '')}Name")
+        algo_name.setStyleSheet(f"""
+            #{algorithm.replace(' ', '')}Name {{
+                color: white;
+                font-size: 18px;
+                font-weight: bold;
+            }}
+        """)
+        algo_details.addWidget(algo_name)
+        
+        # Complexity info
         complexity = QLabel(f"Complexity: {result['complexity']}")
-        complexity.setStyleSheet("color: #aaaaaa; font-size: 12px;")
-        name_layout.addWidget(complexity)
+        complexity.setStyleSheet("""
+            color: #bbbbbb;
+            font-size: 14px;
+        """)
+        algo_details.addWidget(complexity)
         
-        header_layout.addLayout(name_layout)
-        header_layout.addStretch()
+        # Route summary
+        route_summary = QLabel("Route: " + " → ".join([result['route'][0], "...", result['route'][-1]]))
+        route_summary.setStyleSheet("""
+            color: #aaaaaa;
+            font-size: 13px;
+        """)
+        algo_details.addWidget(route_summary)
         
-        # Route length and time
-        stats_layout = QVBoxLayout()
-        stats_layout.setAlignment(Qt.AlignRight)
+        left_layout.addLayout(algo_details)
+        card_layout.addLayout(left_layout)
         
-        route_length = QLabel(f"Route Length: {result['length']:.2f} km")
-        route_length.setStyleSheet("""
-            color: white;
-            font-size: 16px;
+        # Spacer
+        card_layout.addStretch()
+        
+        # Right side - Performance metrics
+        metrics_layout = QVBoxLayout()
+        metrics_layout.setSpacing(10)
+        metrics_layout.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        
+        # Route length with appropriate styling
+        length_layout = QVBoxLayout()
+        length_layout.setAlignment(Qt.AlignRight)
+        
+        length_label = QLabel("ROUTE LENGTH")
+        length_label.setStyleSheet("""
+            color: #aaaaaa;
+            font-size: 12px;
             font-weight: bold;
         """)
-        stats_layout.addWidget(route_length)
+        length_layout.addWidget(length_label)
         
-        time_taken = QLabel(f"Time: {result['time']:.6f} seconds")
-        time_taken.setStyleSheet("color: #aaaaaa; font-size: 12px;")
-        stats_layout.addWidget(time_taken)
-        
-        header_layout.addLayout(stats_layout)
-        
-        card_layout.addLayout(header_layout)
-        
-        # Add separator
-        separator = QFrame()
-        separator.setFrameShape(QFrame.HLine)
-        separator.setFrameShadow(QFrame.Sunken)
-        separator.setStyleSheet("background-color: #333333; height: 1px;")
-        card_layout.addWidget(separator)
-        
-        # Route visualization
-        route_frame = QFrame()
-        route_frame.setStyleSheet("background-color: #222222; border-radius: 5px;")
-        route_layout = QVBoxLayout(route_frame)
-        
-        route_title = QLabel("Route")
-        route_title.setStyleSheet("color: #bbbbbb; font-size: 14px;")
-        route_layout.addWidget(route_title)
-        
-        # Use a scroll area for potentially long routes
-        route_scroll = QScrollArea()
-        route_scroll.setWidgetResizable(True)
-        route_scroll.setFrameShape(QScrollArea.NoFrame)
-        route_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        route_scroll.setStyleSheet("""
-            background: transparent;
-            border: none;
+        length_value = QLabel(f"{result['length']:.2f} km")
+        length_value.setObjectName(f"{algorithm.replace(' ', '')}Length")
+        length_value.setStyleSheet(f"""
+            #{algorithm.replace(' ', '')}Length {{
+                color: {color};
+                font-size: 22px;
+                font-weight: bold;
+            }}
         """)
+        length_layout.addWidget(length_value)
         
-        route_content = QWidget()
-        route_content_layout = QVBoxLayout(route_content)
-        route_content_layout.setContentsMargins(5, 5, 5, 5)
+        metrics_layout.addLayout(length_layout)
         
-        route_text = " → ".join(result['route'])
-        route_label = QLabel(route_text)
-        route_label.setWordWrap(True)
-        route_label.setStyleSheet("""
+        # Execution time with appropriate styling  
+        time_layout = QVBoxLayout()
+        time_layout.setAlignment(Qt.AlignRight)
+        
+        time_label = QLabel("EXECUTION TIME")
+        time_label.setStyleSheet("""
+            color: #aaaaaa;
+            font-size: 12px;
+            font-weight: bold;
+        """)
+        time_layout.addWidget(time_label)
+        
+        time_value = QLabel(f"{result['time']:.6f} sec")
+        time_value.setStyleSheet("""
             color: white;
-            font-size: 14px;
-            background-color: #333333;
-            border-radius: 5px;
-            padding: 8px;
+            font-size: 15px;
         """)
-        route_content_layout.addWidget(route_label)
+        time_layout.addWidget(time_value)
         
-        route_scroll.setWidget(route_content)
-        route_scroll.setMaximumHeight(100)  # Limit height but allow scrolling
+        metrics_layout.addLayout(time_layout)
         
-        route_layout.addWidget(route_scroll)
-        card_layout.addWidget(route_frame)
+        # Add winner badge if this is the winning algorithm
+        if is_winner:
+            winner_badge = QLabel("BEST ROUTE")
+            winner_badge.setObjectName("winnerBadge")
+            winner_badge.setStyleSheet("""
+                #winnerBadge {
+                    background-color: #27ae60;
+                    color: white;
+                    font-size: 12px;
+                    font-weight: bold;
+                    padding: 5px 15px;
+                    border-radius: 10px;
+                }
+            """)
+            winner_badge.setAlignment(Qt.AlignCenter)
+            metrics_layout.addWidget(winner_badge)
+        
+        card_layout.addLayout(metrics_layout)
+        
+        # Click to view full route label
+        view_route = QLabel("View full route")
+        view_route.setStyleSheet("""
+            color: #9b59b6;
+            font-size: 12px;
+            text-decoration: underline;
+            margin-left: 15px;
+        """)
+        card_layout.addWidget(view_route)
         
         return card
     
@@ -412,9 +667,22 @@ class ResultsScreen(QWidget):
         home_city = self.flow_manager.game_state.home_city
         city_count = len(self.flow_manager.game_state.selected_cities)
         
+        cities_to_visit = [city for city in self.flow_manager.game_state.selected_cities 
+                          if city != home_city]
+                          
+        if len(cities_to_visit) <= 3:
+            # For few cities, just list them with commas
+            cities_list = ", ".join(cities_to_visit)
+            cities_display = f"visiting {city_count - 1} cities ({cities_list})"
+        else:
+            # For many cities, show count and first few with "and X more"
+            sample_cities = ", ".join(cities_to_visit[:2])
+            remaining = len(cities_to_visit) - 2
+            cities_display = f"visiting {city_count - 1} cities ({sample_cities}, and {remaining} more)"
+        
         self.journey_summary.setText(
             f"{player_name}'s journey: Starting from {home_city}, "
-            f"visiting {city_count - 1} cities, and returning to {home_city}."
+            f"{cities_display}, and returning to {home_city}."
         )
         
         # Store algorithm names for staged reveal
@@ -425,24 +693,24 @@ class ResultsScreen(QWidget):
         shortest_algorithm = self.flow_manager.game_state.shortest_algorithm
         
         if user_prediction == shortest_algorithm:
-            self.prediction_result.setText("Your prediction was correct!")
+            self.prediction_result.setObjectName("correctPrediction")
+            self.prediction_result.setText("CORRECT!")
             self.prediction_result.setStyleSheet("""
-                background-color: #27ae60;
-                color: white;
-                padding: 8px 15px;
-                border-radius: 5px;
-                font-weight: bold;
-                font-size: 14px;
+                #correctPrediction {
+                    color: #2ecc71;
+                    font-size: 16px;
+                    font-weight: bold;
+                }
             """)
         else:
-            self.prediction_result.setText("Your prediction was incorrect")
+            self.prediction_result.setObjectName("incorrectPrediction")
+            self.prediction_result.setText("INCORRECT!")
             self.prediction_result.setStyleSheet("""
-                background-color: #e74c3c;
-                color: white;
-                padding: 8px 15px;
-                border-radius: 5px;
-                font-weight: bold;
-                font-size: 14px;
+                #incorrectPrediction {
+                    color: #e74c3c;
+                    font-size: 16px;
+                    font-weight: bold;
+                }
             """)
         
         # Start revealing algorithms one by one for dramatic effect
@@ -476,19 +744,23 @@ class ResultsScreen(QWidget):
             
             self.winner_label.setText(shortest_algorithm)
             self.winner_stats.setText(
-                f"Route Length: {result['length']:.2f} km | "
-                f"Execution Time: {result['time']:.6f} seconds"
+                f"Found the shortest route with a length of {result['length']:.2f} km in just {result['time']:.6f} seconds.\n"
+                f"This algorithm provided the optimal solution for your specific set of cities."
             )
             
             # Show winner frame with animation
             self.winner_frame.setVisible(True)
             
-            # Apply animation effect
-            self.winner_frame.setStyleSheet("""
-                background-color: #27ae60;
-                border-radius: 10px;
-                padding: 15px;
-            """)
+            # Apply animation effect - fade in
+            effect = QGraphicsOpacityEffect(self.winner_frame)
+            self.winner_frame.setGraphicsEffect(effect)
+            
+            anim = QPropertyAnimation(effect, b"opacity")
+            anim.setStartValue(0)
+            anim.setEndValue(1)
+            anim.setDuration(1000)
+            anim.setEasingCurve(QEasingCurve.InOutCubic)
+            anim.start()
     
     def restart_game(self):
         """Restart the game with a new scenario"""
@@ -498,3 +770,8 @@ class ResultsScreen(QWidget):
     def show_summary(self):
         """Continue to the summary screen"""
         self.flow_manager.show_summary_screen()
+    
+    def update_display(self):
+        """Update the display with current game state"""
+        # Set up results when the screen is shown
+        self.setup_results()

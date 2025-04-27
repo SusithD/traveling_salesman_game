@@ -24,175 +24,331 @@ class PredictionScreen(QWidget):
     
     def setup_ui(self):
         """Setup the UI components"""
-        # Main layout
+        # Main layout with center alignment
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(40, 40, 40, 40)
         main_layout.setSpacing(20)
+        main_layout.setAlignment(Qt.AlignCenter)
         
-        # Create container
-        container = QFrame()
-        container.setStyleSheet("""
-            background-color: #111111;
-            border: 2px solid #333333;
-            border-radius: 15px;
-            padding: 20px;
+        # Create central container frame with modern styling
+        central_frame = QFrame()
+        central_frame.setObjectName("predictionContainer")
+        central_frame.setMinimumWidth(1000)
+        central_frame.setMaximumWidth(1200)
+        central_frame.setStyleSheet("""
+            #predictionContainer {
+                background-color: rgba(26, 26, 26, 0.7);
+                border-radius: 20px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+            }
         """)
-        container_layout = QVBoxLayout(container)
-        container_layout.setContentsMargins(30, 30, 30, 30)
+        
+        container_layout = QVBoxLayout(central_frame)
+        container_layout.setContentsMargins(40, 40, 40, 40)
         container_layout.setSpacing(25)
         
-        # Header with info
-        header_layout = QHBoxLayout()
+        # Header with progress indicator
+        header_frame = QFrame()
+        header_frame.setObjectName("headerFrame")
+        header_frame.setStyleSheet("""
+            #headerFrame {
+                background-color: rgba(243, 156, 18, 0.15);
+                border-radius: 15px;
+            }
+        """)
+        header_layout = QHBoxLayout(header_frame)
+        header_layout.setContentsMargins(20, 15, 20, 15)
         
+        # Left side - Title with icon
+        header_left = QHBoxLayout()
+        
+        # Prediction icon
         prediction_icon = QLabel("🧠")
+        prediction_icon.setFixedSize(60, 60)
+        prediction_icon.setObjectName("predictionIcon")
         prediction_icon.setStyleSheet("""
-            font-size: 36px;
-            padding: 10px;
-            background-color: #8e44ad;
-            color: white;
-            border-radius: 10px;
+            #predictionIcon {
+                font-size: 30px;
+                background-color: #f39c12;
+                color: white;
+                border-radius: 30px;
+                margin-right: 15px;
+            }
         """)
-        header_layout.addWidget(prediction_icon)
+        prediction_icon.setAlignment(Qt.AlignCenter)
+        header_left.addWidget(prediction_icon)
         
-        header_text = QVBoxLayout()
-        title = QLabel("Make Your Prediction")
+        # Title and subtitle
+        title_layout = QVBoxLayout()
+        title_layout.setSpacing(5)
+        
+        title = QLabel("ALGORITHM PREDICTION")
+        title.setObjectName("predictionTitle")
         title.setStyleSheet("""
-            color: white;
-            font-size: 24px;
-            font-weight: bold;
+            #predictionTitle {
+                color: white;
+                font-size: 22px;
+                font-weight: bold;
+                letter-spacing: 1px;
+            }
         """)
-        header_text.addWidget(title)
+        title_layout.addWidget(title)
         
         subtitle = QLabel("Predict which algorithm will find the shortest route")
-        subtitle.setStyleSheet("color: #aaaaaa; font-size: 16px;")
-        header_text.addWidget(subtitle)
+        subtitle.setObjectName("predictionSubtitle")
+        subtitle.setStyleSheet("""
+            #predictionSubtitle {
+                color: #BBBBBB;
+                font-size: 14px;
+            }
+        """)
+        title_layout.addWidget(subtitle)
         
-        header_layout.addLayout(header_text)
+        header_left.addLayout(title_layout)
+        header_layout.addLayout(header_left)
         header_layout.addStretch()
         
-        container_layout.addLayout(header_layout)
+        # Right side - Progress indicator
+        progress_frame = QFrame()
+        progress_frame.setObjectName("progressFrame")
+        progress_frame.setStyleSheet("""
+            #progressFrame {
+                background-color: rgba(255, 255, 255, 0.1);
+                border-radius: 10px;
+                padding: 5px 15px;
+            }
+        """)
+        progress_layout = QHBoxLayout(progress_frame)
+        progress_layout.setContentsMargins(10, 5, 10, 5)
+        progress_layout.setSpacing(8)
         
-        # Add separator
+        # Step indicators
+        step1 = QLabel("1")
+        step1.setObjectName("step1")
+        step1.setStyleSheet("""
+            #step1 {
+                background-color: #3D5AFE;
+                color: white;
+                border-radius: 12px;
+                padding: 5px;
+                font-weight: bold;
+                min-width: 24px;
+                min-height: 24px;
+                qproperty-alignment: AlignCenter;
+            }
+        """)
+        progress_layout.addWidget(step1)
+        
+        arrow1 = QLabel("→")
+        arrow1.setStyleSheet("color: white; font-size: 14px;")
+        progress_layout.addWidget(arrow1)
+        
+        step2 = QLabel("2")
+        step2.setObjectName("step2")
+        step2.setStyleSheet("""
+            #step2 {
+                background-color: #3D5AFE;
+                color: white;
+                border-radius: 12px;
+                padding: 5px;
+                font-weight: bold;
+                min-width: 24px;
+                min-height: 24px;
+                qproperty-alignment: AlignCenter;
+            }
+        """)
+        progress_layout.addWidget(step2)
+        
+        arrow2 = QLabel("→")
+        arrow2.setStyleSheet("color: white; font-size: 14px;")
+        progress_layout.addWidget(arrow2)
+        
+        step3 = QLabel("3")
+        step3.setObjectName("step3")
+        step3.setStyleSheet("""
+            #step3 {
+                background-color: #f39c12;
+                color: white;
+                border-radius: 12px;
+                padding: 5px;
+                font-weight: bold;
+                min-width: 24px;
+                min-height: 24px;
+                qproperty-alignment: AlignCenter;
+            }
+        """)
+        progress_layout.addWidget(step3)
+        
+        header_layout.addWidget(progress_frame)
+        container_layout.addWidget(header_frame)
+        
+        # Stylish separator
         separator = QFrame()
         separator.setFrameShape(QFrame.HLine)
-        separator.setFrameShadow(QFrame.Sunken)
-        separator.setStyleSheet("background-color: #333333; height: 1px;")
-        container_layout.addWidget(separator)
-        
-        # Journey summary - tell the player what they're solving
-        summary_frame = QFrame()
-        summary_frame.setStyleSheet("""
-            background-color: #2c3e50;
-            border-radius: 10px;
-            padding: 15px;
+        separator.setStyleSheet("""
+            background-color: #f39c12;
+            max-width: 150px;
+            height: 3px;
+            margin: 5px;
         """)
-        summary_layout = QVBoxLayout(summary_frame)
+        container_layout.addWidget(separator, 0, Qt.AlignCenter)
         
-        journey_title = QLabel("Your Journey")
-        journey_title.setStyleSheet("color: white; font-weight: bold; font-size: 16px;")
+        # Journey summary frame with updated styling
+        journey_frame = QFrame()
+        journey_frame.setObjectName("journeyFrame")
+        journey_frame.setStyleSheet("""
+            #journeyFrame {
+                background-color: rgba(33, 33, 33, 0.7);
+                border-radius: 15px;
+                padding: 15px;
+            }
+        """)
+        journey_layout = QVBoxLayout(journey_frame)
+        journey_layout.setContentsMargins(25, 25, 25, 25)
+        journey_layout.setSpacing(15)
+        
+        journey_title = QLabel("YOUR JOURNEY")
+        journey_title.setObjectName("journeyTitle")
+        journey_title.setStyleSheet("""
+            #journeyTitle {
+                color: #f39c12;
+                font-size: 16px;
+                font-weight: bold;
+                letter-spacing: 1px;
+            }
+        """)
         journey_title.setAlignment(Qt.AlignCenter)
-        summary_layout.addWidget(journey_title)
+        journey_layout.addWidget(journey_title)
         
         self.journey_label = QLabel()
+        self.journey_label.setObjectName("journeyDetails")
         self.journey_label.setWordWrap(True)
         self.journey_label.setStyleSheet("""
-            color: white;
-            font-size: 14px;
-            line-height: 20px;
-            padding: 8px;
+            #journeyDetails {
+                color: #DDDDDD;
+                font-size: 15px;
+                line-height: 150%;
+                background-color: rgba(243, 156, 18, 0.1);
+                border: 1px solid rgba(243, 156, 18, 0.2);
+                border-radius: 10px;
+                padding: 15px;
+            }
         """)
-        summary_layout.addWidget(self.journey_label)
+        self.journey_label.setAlignment(Qt.AlignCenter)
+        journey_layout.addWidget(self.journey_label)
         
-        container_layout.addWidget(summary_frame)
+        container_layout.addWidget(journey_frame)
         
-        # Algorithm selection area with cards
-        algo_title = QLabel("Select Your Prediction")
+        # Algorithm selection section
+        algo_title = QLabel("SELECT YOUR PREDICTION")
+        algo_title.setObjectName("algoSectionTitle")
         algo_title.setStyleSheet("""
-            color: white;
-            font-size: 18px;
-            font-weight: bold;
-            margin-top: 10px;
+            #algoSectionTitle {
+                color: white;
+                font-size: 18px;
+                font-weight: bold;
+                letter-spacing: 1px;
+                margin-top: 10px;
+            }
         """)
+        algo_title.setAlignment(Qt.AlignCenter)
         container_layout.addWidget(algo_title)
         
         # Radio button group for algorithm selection
         self.algorithm_group = QButtonGroup()
         self.algorithm_group.buttonClicked.connect(self.algorithm_selected)
         
-        # Brute Force card
+        # Algorithm cards container
+        algo_cards_layout = QVBoxLayout()
+        algo_cards_layout.setSpacing(15)
+        
+        # Brute Force card with improved styling
         bf_card = self.create_algorithm_card(
             "Brute Force", 
             "🧮", 
-            "#c0392b",
+            "#e74c3c",
             "Tries all possible routes (O(n!))",
             "• Guaranteed to find the optimal solution\n• Very slow for large numbers of cities\n• Computational complexity grows factorially",
             "brute_force"
         )
-        container_layout.addWidget(bf_card)
+        algo_cards_layout.addWidget(bf_card)
         
-        # Nearest Neighbor card
+        # Nearest Neighbor card with improved styling
         nn_card = self.create_algorithm_card(
             "Nearest Neighbor", 
             "📍", 
-            "#2980b9",
+            "#3498db",
             "Always visits closest unvisited city (O(n²))",
             "• Fast and efficient greedy algorithm\n• May not find the optimal solution\n• Makes decisions based on local information",
             "nearest_neighbor"
         )
-        container_layout.addWidget(nn_card)
+        algo_cards_layout.addWidget(nn_card)
         
-        # Dynamic Programming card
+        # Dynamic Programming card with improved styling
         dp_card = self.create_algorithm_card(
             "Dynamic Programming", 
             "⚙️", 
-            "#27ae60",
+            "#2ecc71",
             "Solves subproblems and builds up solution (O(n²2ⁿ))",
             "• Finds the optimal solution\n• Faster than brute force\n• Uses memoization to avoid repeated work",
             "dynamic_programming"
         )
-        container_layout.addWidget(dp_card)
+        algo_cards_layout.addWidget(dp_card)
         
-        # Button area
+        container_layout.addLayout(algo_cards_layout)
+        
+        # Button area with updated styling
         button_layout = QHBoxLayout()
-        button_layout.addStretch()
+        button_layout.setSpacing(15)
+        button_layout.setAlignment(Qt.AlignCenter)
         
-        back_button = QPushButton("← Back")
+        back_button = QPushButton("← BACK")
+        back_button.setObjectName("backButton")
+        back_button.setFixedSize(150, 50)
         back_button.setStyleSheet("""
-            QPushButton {
-                background-color: #333333;
+            #backButton {
+                background-color: rgba(45, 45, 45, 0.7);
                 color: white;
-                border: 1px solid #555555;
-                border-radius: 5px;
-                padding: 10px 15px;
+                border: none;
+                border-radius: 12px;
+                padding: 12px 20px;
                 font-size: 14px;
+                font-weight: bold;
+                letter-spacing: 1px;
             }
-            QPushButton:hover {
-                background-color: #444444;
+            #backButton:hover {
+                background-color: rgba(60, 60, 60, 0.8);
+            }
+            #backButton:pressed {
+                background-color: rgba(35, 35, 35, 0.9);
             }
         """)
         back_button.clicked.connect(self.go_back)
         button_layout.addWidget(back_button)
         
-        self.calculate_button = QPushButton("Calculate Routes →")
+        self.calculate_button = QPushButton("CALCULATE ROUTES →")
+        self.calculate_button.setObjectName("continueButton")
+        self.calculate_button.setFixedSize(250, 50)
         self.calculate_button.setStyleSheet("""
-            QPushButton {
-                background-color: #9b59b6;
+            #continueButton {
+                background-color: #f39c12;
                 color: white;
                 border: none;
-                border-radius: 5px;
-                padding: 10px 20px;
-                font-size: 16px;
+                border-radius: 12px;
+                padding: 12px 25px;
+                font-size: 14px;
                 font-weight: bold;
+                letter-spacing: 1px;
             }
-            QPushButton:hover {
-                background-color: #8e44ad;
+            #continueButton:hover {
+                background-color: #e67e22;
             }
-            QPushButton:pressed {
-                background-color: #6c3483;
+            #continueButton:pressed {
+                background-color: #d35400;
             }
-            QPushButton:disabled {
-                background-color: #95a5a6;
-                color: #dddddd;
+            #continueButton:disabled {
+                background-color: #555555;
+                color: #aaaaaa;
             }
         """)
         self.calculate_button.clicked.connect(self.start_calculation)
@@ -202,99 +358,114 @@ class PredictionScreen(QWidget):
         container_layout.addLayout(button_layout)
         
         # Add container to main layout
-        main_layout.addWidget(container)
+        main_layout.addWidget(central_frame, 0, Qt.AlignCenter)
     
     def create_algorithm_card(self, title, icon, color, subtitle, details, algorithm_id):
-        """Create a card for an algorithm selection"""
+        """Create a card for an algorithm selection with improved styling"""
         card = QFrame()
         card.setObjectName(f"{algorithm_id}_card")
         card.setStyleSheet(f"""
-            QFrame {{
-                background-color: #222222;
-                border: 1px solid #333333;
-                border-radius: 10px;
-                padding: 10px;
+            #{algorithm_id}_card {{
+                background-color: rgba(33, 33, 33, 0.7);
+                border: 1px solid #444444;
+                border-radius: 15px;
+                padding: 0px;
                 margin: 5px 0px;
             }}
-            QFrame:hover {{
-                background-color: #282828;
+            #{algorithm_id}_card:hover {{
+                background-color: rgba(40, 40, 40, 0.8);
                 border: 1px solid {color};
             }}
         """)
         card_layout = QHBoxLayout(card)
-        card_layout.setContentsMargins(15, 15, 15, 15)
-        card_layout.setSpacing(15)
+        card_layout.setContentsMargins(20, 20, 20, 20)
+        card_layout.setSpacing(20)
         
-        # Icon section
+        # Icon section with improved styling
+        icon_frame = QFrame()
+        icon_frame.setObjectName(f"{algorithm_id}_icon_frame")
+        icon_frame.setFixedSize(80, 80)
+        icon_frame.setStyleSheet(f"""
+            #{algorithm_id}_icon_frame {{
+                background-color: {color};
+                border-radius: 40px;
+                border: none;
+            }}
+        """)
+        icon_layout = QVBoxLayout(icon_frame)
+        icon_layout.setContentsMargins(0, 0, 0, 0)
+        
         icon_label = QLabel(icon)
         icon_label.setStyleSheet(f"""
             font-size: 36px;
-            padding: 15px;
-            background-color: {color};
             color: white;
-            border-radius: 10px;
-            min-width: 30px;
         """)
         icon_label.setAlignment(Qt.AlignCenter)
-        card_layout.addWidget(icon_label)
+        icon_layout.addWidget(icon_label)
         
-        # Content section
+        card_layout.addWidget(icon_frame)
+        
+        # Content section with improved styling
         content_layout = QVBoxLayout()
-        content_layout.setSpacing(5)
+        content_layout.setSpacing(10)
         
         # Algorithm name with radio button
         title_layout = QHBoxLayout()
         
         radio = QRadioButton(title)
         radio.setObjectName(algorithm_id)
-        radio.setStyleSheet("""
-            QRadioButton {
+        radio.setStyleSheet(f"""
+            QRadioButton {{
                 color: white;
                 font-size: 18px;
                 font-weight: bold;
                 spacing: 10px;
-            }
-            QRadioButton::indicator {
-                width: 18px;
-                height: 18px;
-                border-radius: 9px;
-                border: 2px solid #555555;
-            }
-            QRadioButton::indicator:checked {
-                background-color: white;
-                border: 2px solid white;
+            }}
+            QRadioButton::indicator {{
+                width: 20px;
+                height: 20px;
+                border-radius: 10px;
+                border: 2px solid #666666;
+            }}
+            QRadioButton::indicator:checked {{
+                background-color: {color};
+                border: 2px solid {color};
                 image: none;
-            }
-            QRadioButton::indicator:unchecked {
+            }}
+            QRadioButton::indicator:unchecked {{
                 background-color: transparent;
-            }
+            }}
         """)
         self.algorithm_group.addButton(radio)
         title_layout.addWidget(radio)
         title_layout.addStretch()
         
-        # Complexity badge
+        # Complexity badge with improved styling
         complexity = QLabel(subtitle)
         complexity.setStyleSheet(f"""
             background-color: {color};
-            opacity: 0.7;
             color: white;
             font-size: 12px;
-            padding: 4px 8px;
-            border-radius: 4px;
+            font-weight: bold;
+            padding: 6px 10px;
+            border-radius: 8px;
         """)
         title_layout.addWidget(complexity)
         
         content_layout.addLayout(title_layout)
         
-        # Details
+        # Details with improved styling
         details_label = QLabel(details)
-        details_label.setStyleSheet("""
-            color: #bbbbbb;
-            font-size: 13px;
-            line-height: 18px;
-            padding: 5px;
-            margin-top: 5px;
+        details_label.setObjectName(f"{algorithm_id}_details")
+        details_label.setStyleSheet(f"""
+            #{algorithm_id}_details {{
+                color: #dddddd;
+                font-size: 14px;
+                line-height: 150%;
+                background-color: rgba(40, 40, 40, 0.6);
+                border-radius: 8px;
+                padding: 10px 15px;
+            }}
         """)
         content_layout.addWidget(details_label)
         
@@ -313,46 +484,84 @@ class PredictionScreen(QWidget):
         # Disable calculate button
         self.calculate_button.setEnabled(False)
         self.selected_algorithm = None
+        
+        # Remove highlighting from all cards
+        for card_name in ["brute_force_card", "nearest_neighbor_card", "dynamic_programming_card"]:
+            card = self.findChild(QFrame, card_name)
+            if card:
+                algorithm_id = card_name.replace("_card", "")
+                card.setStyleSheet(f"""
+                    #{card_name} {{
+                        background-color: rgba(33, 33, 33, 0.7);
+                        border: 1px solid #444444;
+                        border-radius: 15px;
+                        padding: 0px;
+                        margin: 5px 0px;
+                    }}
+                    #{card_name}:hover {{
+                        background-color: rgba(40, 40, 40, 0.8);
+                        border: 1px solid #666666;
+                    }}
+                """)
+                card.setGraphicsEffect(None)
     
     def update_display(self):
         """Update the display with current game state"""
-        # Show journey summary
+        # Show journey summary with improved formatting
         player_name = self.flow_manager.game_state.player_name
         home_city = self.flow_manager.game_state.home_city
         city_count = len(self.flow_manager.game_state.selected_cities)
         
-        cities_list = ", ".join(city for city in self.flow_manager.game_state.selected_cities 
-                               if city != home_city)
+        cities_to_visit = [city for city in self.flow_manager.game_state.selected_cities 
+                          if city != home_city]
+                          
+        if len(cities_to_visit) <= 4:
+            # For few cities, just list them with commas
+            cities_list = ", ".join(cities_to_visit)
+            cities_display = f"visiting {city_count - 1} cities ({cities_list})"
+        else:
+            # For many cities, show count and first few with "and X more"
+            sample_cities = ", ".join(cities_to_visit[:3])
+            remaining = len(cities_to_visit) - 3
+            cities_display = f"visiting {city_count - 1} cities ({sample_cities}, and {remaining} more)"
         
         self.journey_label.setText(
-            f"{player_name}, you'll be starting from {home_city}, visiting {city_count - 1} cities "
-            f"({cities_list}), and returning to {home_city}.\n\n"
+            f"{player_name}, you'll be starting from {home_city}, {cities_display}, "
+            f"and returning to {home_city}.\n\n"
             f"Before calculating the routes, which algorithm do you predict will find the shortest path?"
         )
+        
+        # Reset selection
+        self.reset()
     
     def algorithm_selected(self, button):
-        """Handle algorithm selection"""
+        """Handle algorithm selection with enhanced visual feedback"""
         self.selected_algorithm = button.objectName()
         self.calculate_button.setEnabled(True)
+        
+        # Define colors for each algorithm
+        colors = {
+            "brute_force": "#e74c3c",
+            "nearest_neighbor": "#3498db",
+            "dynamic_programming": "#2ecc71"
+        }
         
         # Highlight selected card
         for card_name in ["brute_force_card", "nearest_neighbor_card", "dynamic_programming_card"]:
             card = self.findChild(QFrame, card_name)
-            if card_name.startswith(self.selected_algorithm):
-                # Selected card gets highlighted border
-                if self.selected_algorithm == "brute_force":
-                    color = "#c0392b"
-                elif self.selected_algorithm == "nearest_neighbor":
-                    color = "#2980b9"
-                else:  # dynamic_programming
-                    color = "#27ae60"
-                    
+            algorithm_id = card_name.replace("_card", "")
+            
+            if algorithm_id == self.selected_algorithm:
+                # Selected card gets highlighted border and glow effect
+                color = colors[algorithm_id]
                 card.setStyleSheet(f"""
-                    background-color: #282828;
-                    border: 2px solid {color};
-                    border-radius: 10px;
-                    padding: 10px;
-                    margin: 5px 0px;
+                    #{card_name} {{
+                        background-color: rgba(40, 40, 40, 0.9);
+                        border: 2px solid {color};
+                        border-radius: 15px;
+                        padding: 0px;
+                        margin: 5px 0px;
+                    }}
                 """)
                 
                 # Add glow effect
@@ -363,12 +572,18 @@ class PredictionScreen(QWidget):
                 card.setGraphicsEffect(shadow)
             else:
                 # Reset other cards
-                card.setStyleSheet("""
-                    background-color: #222222;
-                    border: 1px solid #333333;
-                    border-radius: 10px;
-                    padding: 10px;
-                    margin: 5px 0px;
+                card.setStyleSheet(f"""
+                    #{card_name} {{
+                        background-color: rgba(33, 33, 33, 0.7);
+                        border: 1px solid #444444;
+                        border-radius: 15px;
+                        padding: 0px;
+                        margin: 5px 0px;
+                    }}
+                    #{card_name}:hover {{
+                        background-color: rgba(40, 40, 40, 0.8);
+                        border: 1px solid #666666;
+                    }}
                 """)
                 card.setGraphicsEffect(None)
     
