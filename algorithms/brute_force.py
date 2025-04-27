@@ -31,21 +31,15 @@ def solve_tsp_brute_force(cities, distances, home_city):
         total_distance = 0
         for i in range(len(route) - 1):
             city1, city2 = route[i], route[i+1]
+            distance_key = (city1, city2)
+            reverse_key = (city2, city1)
             
-            # Use safe distance calculation method
-            if city1 == city2:
-                # Distance from a city to itself is 0
-                continue  # Skip adding distance since it's 0
+            if distance_key in distances:
+                total_distance += distances[distance_key]
+            elif reverse_key in distances:
+                total_distance += distances[reverse_key]
             else:
-                distance_key = (city1, city2)
-                reverse_key = (city2, city1)
-                
-                if distance_key in distances:
-                    total_distance += distances[distance_key]
-                elif reverse_key in distances:
-                    total_distance += distances[reverse_key]
-                else:
-                    raise ValueError(f"No distance found between {city1} and {city2}")
+                raise ValueError(f"No distance found between {city1} and {city2}")
         
         # Update best route if this one is shorter
         if total_distance < best_length:
