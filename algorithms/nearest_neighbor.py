@@ -30,19 +30,15 @@ def solve_tsp_nearest_neighbor(cities, distances, home_city):
         min_distance = float('inf')
         
         for city in unvisited:
-            # Handle same-city case
-            if current_city == city:
-                distance = 0
+            distance_key = (current_city, city)
+            reverse_key = (city, current_city)
+            
+            if distance_key in distances:
+                distance = distances[distance_key]
+            elif reverse_key in distances:
+                distance = distances[reverse_key]
             else:
-                distance_key = (current_city, city)
-                reverse_key = (city, current_city)
-                
-                if distance_key in distances:
-                    distance = distances[distance_key]
-                elif reverse_key in distances:
-                    distance = distances[reverse_key]
-                else:
-                    raise ValueError(f"No distance found between {current_city} and {city}")
+                raise ValueError(f"No distance found between {current_city} and {city}")
             
             if distance < min_distance:
                 min_distance = distance
@@ -55,20 +51,15 @@ def solve_tsp_nearest_neighbor(cities, distances, home_city):
         unvisited.remove(closest_city)
     
     # Return to home city
-    # Handle same-city case (should rarely occur but for completeness)
-    if current_city == home_city:
-        # No additional distance if already at home
-        pass
+    distance_key = (current_city, home_city)
+    reverse_key = (home_city, current_city)
+    
+    if distance_key in distances:
+        total_distance += distances[distance_key]
+    elif reverse_key in distances:
+        total_distance += distances[reverse_key]
     else:
-        distance_key = (current_city, home_city)
-        reverse_key = (home_city, current_city)
-        
-        if distance_key in distances:
-            total_distance += distances[distance_key]
-        elif reverse_key in distances:
-            total_distance += distances[reverse_key]
-        else:
-            raise ValueError(f"No distance found between {current_city} and {home_city}")
+        raise ValueError(f"No distance found between {current_city} and {home_city}")
     
     route.append(home_city)
     
