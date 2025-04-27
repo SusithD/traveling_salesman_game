@@ -800,9 +800,20 @@ class CitySelectionScreen(QWidget):
         self.flow_manager.show_mission_screen()
     
     def continue_to_prediction(self):
-        """Continue to the prediction screen"""
+        """Continue to the prediction screen if validation passes"""
         # Get selected cities
         selected_cities = self.get_selected_cities()
+        
+        # Validate selection - need at least 2 cities besides home city
+        if len(selected_cities) < 2:
+            from PyQt5.QtWidgets import QMessageBox
+            QMessageBox.warning(
+                self, 
+                "Insufficient Cities",
+                "You must select at least 2 cities to visit besides your home city!",
+                QMessageBox.Ok
+            )
+            return
         
         # Add home city
         if self.flow_manager.game_state.home_city not in selected_cities:

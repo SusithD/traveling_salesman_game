@@ -147,15 +147,71 @@ class GameFlowManager(QObject):
         self._scroll_to_top()
         self.stack.setCurrentWidget(self.city_selection_screen)
     
+    def is_valid_for_prediction_screen(self):
+        """Check if conditions are met to show the prediction screen"""
+        if not self.game_state.selected_cities or len(self.game_state.selected_cities) < 3:
+            logger.error("Insufficient cities selected")
+            from PyQt5.QtWidgets import QMessageBox
+            QMessageBox.warning(
+                self.stack.currentWidget(),
+                "Insufficient Cities",
+                "You must select at least 2 cities to visit besides your home city!",
+                QMessageBox.Ok
+            )
+            return False
+        
+        if not self.game_state.home_city:
+            logger.error("No home city set")
+            from PyQt5.QtWidgets import QMessageBox
+            QMessageBox.warning(
+                self.stack.currentWidget(),
+                "Home City Required",
+                "A home city must be set before continuing!",
+                QMessageBox.Ok
+            )
+            return False
+            
+        # Ensure home city is in the selected cities
+        if self.game_state.home_city not in self.game_state.selected_cities:
+            self.game_state.selected_cities.append(self.game_state.home_city)
+            
+        return True
+
     def show_prediction_screen(self):
-        """Display the algorithm prediction screen"""
+        """Display the algorithm prediction screen if validation passes"""
+        logger.info("Validating for prediction screen")
+        if not self.is_valid_for_prediction_screen():
+            return
+            
         logger.info("Showing prediction screen")
         self.prediction_screen.update_display()
         self._scroll_to_top()
         self.stack.setCurrentWidget(self.prediction_screen)
     
+    def is_valid_for_calculating_screen(self):
+        """Check if conditions are met to show the calculating screen"""
+        if not self.is_valid_for_prediction_screen():
+            return False
+            
+        if not self.game_state.user_prediction:
+            logger.error("No algorithm prediction made")
+            from PyQt5.QtWidgets import QMessageBox
+            QMessageBox.warning(
+                self.stack.currentWidget(),
+                "Prediction Required",
+                "Please select an algorithm prediction before continuing!",
+                QMessageBox.Ok
+            )
+            return False
+            
+        return True
+    
     def show_calculating_screen(self, user_prediction):
-        """Display the calculating animation screen and start calculation"""
+        """Display the calculating animation screen and start calculation if validation passes"""
+        logger.info(f"Validating for calculating screen - user predicted: {user_prediction}")
+        if not self.is_valid_for_calculating_screen():
+            return
+            
         logger.info(f"Showing calculating screen - user predicted: {user_prediction}")
         self.game_state.user_prediction = user_prediction
         self.calculating_screen.update_display()
@@ -168,8 +224,21 @@ class GameFlowManager(QObject):
         # Start calculations in background
         self._run_algorithms()
     
+    def is_valid_for_results_screen(self):
+        """Check if conditions are met to show the results screen"""
+        if not self.game_state.algorithm_results:
+            logger.error("No algorithm results available")
+            return False
+            
+        return True
+
     def show_results_screen(self):
-        """Display the results screen after calculations complete"""
+        """Display the results screen after calculations complete if validation passes"""
+        logger.info("Validating for results screen")
+        if not self.is_valid_for_results_screen():
+            logger.error("Cannot show results - validation failed")
+            return
+            
         logger.info("Showing results screen")
         self.results_screen.setup_results()
         self._scroll_to_top()

@@ -5,7 +5,7 @@ import logging
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, 
     QFrame, QRadioButton, QButtonGroup, QSpacerItem, 
-    QSizePolicy, QGraphicsDropShadowEffect
+    QSizePolicy, QGraphicsDropShadowEffect, QMessageBox
 )
 from PyQt5.QtCore import Qt, QPropertyAnimation, QRect, QEasingCurve
 from PyQt5.QtGui import QColor, QFont
@@ -19,7 +19,7 @@ class PredictionScreen(QWidget):
     def __init__(self, flow_manager):
         super().__init__()
         self.flow_manager = flow_manager
-        self.selected_algorithm = None
+        self.selected_algorithm = None  # Track which algorithm is selected
         self.setup_ui()
     
     def setup_ui(self):
@@ -263,7 +263,7 @@ class PredictionScreen(QWidget):
         algo_cards_layout.setSpacing(15)
         
         # Brute Force card with improved styling
-        bf_card = self.create_algorithm_card(
+        self.bf_card = self.create_algorithm_card(
             "Brute Force", 
             "🧮", 
             "#e74c3c",
@@ -271,10 +271,10 @@ class PredictionScreen(QWidget):
             "• Guaranteed to find the optimal solution\n• Very slow for large numbers of cities\n• Computational complexity grows factorially",
             "brute_force"
         )
-        algo_cards_layout.addWidget(bf_card)
+        algo_cards_layout.addWidget(self.bf_card)
         
         # Nearest Neighbor card with improved styling
-        nn_card = self.create_algorithm_card(
+        self.nn_card = self.create_algorithm_card(
             "Nearest Neighbor", 
             "📍", 
             "#3498db",
@@ -282,10 +282,10 @@ class PredictionScreen(QWidget):
             "• Fast and efficient greedy algorithm\n• May not find the optimal solution\n• Makes decisions based on local information",
             "nearest_neighbor"
         )
-        algo_cards_layout.addWidget(nn_card)
+        algo_cards_layout.addWidget(self.nn_card)
         
         # Dynamic Programming card with improved styling
-        dp_card = self.create_algorithm_card(
+        self.dp_card = self.create_algorithm_card(
             "Dynamic Programming", 
             "⚙️", 
             "#2ecc71",
@@ -293,7 +293,7 @@ class PredictionScreen(QWidget):
             "• Finds the optimal solution\n• Faster than brute force\n• Uses memoization to avoid repeated work",
             "dynamic_programming"
         )
-        algo_cards_layout.addWidget(dp_card)
+        algo_cards_layout.addWidget(self.dp_card)
         
         container_layout.addLayout(algo_cards_layout)
         
@@ -326,6 +326,7 @@ class PredictionScreen(QWidget):
         back_button.clicked.connect(self.go_back)
         button_layout.addWidget(back_button)
         
+        # Find the CALCULATE ROUTES button and disable it initially
         self.calculate_button = QPushButton("CALCULATE ROUTES →")
         self.calculate_button.setObjectName("continueButton")
         self.calculate_button.setFixedSize(250, 50)
@@ -353,6 +354,7 @@ class PredictionScreen(QWidget):
         """)
         self.calculate_button.clicked.connect(self.start_calculation)
         self.calculate_button.setEnabled(False)  # Initially disabled
+        
         button_layout.addWidget(self.calculate_button)
         
         container_layout.addLayout(button_layout)
@@ -414,6 +416,8 @@ class PredictionScreen(QWidget):
         
         radio = QRadioButton(title)
         radio.setObjectName(algorithm_id)
+        # Explicitly set the algorithm_id property
+        radio.setProperty("algorithm_id", algorithm_id)
         radio.setStyleSheet(f"""
             QRadioButton {{
                 color: white;
@@ -536,28 +540,37 @@ class PredictionScreen(QWidget):
     
     def algorithm_selected(self, button):
         """Handle algorithm selection with enhanced visual feedback"""
-        self.selected_algorithm = button.objectName()
+        algorithm_id = button.property("algorithm_id")
+        self.selected_algorithm = algorithm_id
+        
+        # Log the selection for debugging
+        logger.info(f"Algorithm selected: {algorithm_id}")
+        
+        # Enable the calculate button now that an algorithm is selected
         self.calculate_button.setEnabled(True)
         
-        # Define colors for each algorithm
+        # Apply selected styling to the clicked algorithm's card
+        cards = {
+            "brute_force": self.bf_card,
+            "nearest_neighbor": self.nn_card,
+            "dynamic_programming": self.dp_card
+        }
+        
+        # Colors for different algorithm cards
         colors = {
             "brute_force": "#e74c3c",
             "nearest_neighbor": "#3498db",
             "dynamic_programming": "#2ecc71"
         }
         
-        # Highlight selected card
-        for card_name in ["brute_force_card", "nearest_neighbor_card", "dynamic_programming_card"]:
-            card = self.findChild(QFrame, card_name)
-            algorithm_id = card_name.replace("_card", "")
-            
-            if algorithm_id == self.selected_algorithm:
-                # Selected card gets highlighted border and glow effect
-                color = colors[algorithm_id]
+        # Update all cards
+        for card_name, card in cards.items():
+            if card_name == algorithm_id:
+                # Selected card styling
                 card.setStyleSheet(f"""
                     #{card_name} {{
-                        background-color: rgba(40, 40, 40, 0.9);
-                        border: 2px solid {color};
+                        background-color: rgba(33, 33, 33, 0.8);
+                        border: 2px solid {colors[card_name]};
                         border-radius: 15px;
                         padding: 0px;
                         margin: 5px 0px;
@@ -567,7 +580,7 @@ class PredictionScreen(QWidget):
                 # Add glow effect
                 shadow = QGraphicsDropShadowEffect()
                 shadow.setBlurRadius(15)
-                shadow.setColor(QColor(color))
+                shadow.setColor(QColor(colors[card_name]))
                 shadow.setOffset(0, 0)
                 card.setGraphicsEffect(shadow)
             else:
@@ -582,18 +595,29 @@ class PredictionScreen(QWidget):
                     }}
                     #{card_name}:hover {{
                         background-color: rgba(40, 40, 40, 0.8);
-                        border: 1px solid #666666;
+                        border: 1px solid #555555;
                     }}
                 """)
+                
+                # Remove shadow effect
                 card.setGraphicsEffect(None)
-    
+
     def go_back(self):
         """Go back to the city selection screen"""
         self.flow_manager.show_city_selection_screen()
     
     def start_calculation(self):
         """Start the route calculation process"""
+        logger.info(f"Starting calculation with selected algorithm: {self.selected_algorithm}")
+        
         if not self.selected_algorithm:
+            logger.error("No algorithm selected, showing warning")
+            QMessageBox.warning(
+                self, 
+                "No Algorithm Selected",
+                "Please select an algorithm before continuing.",
+                QMessageBox.Ok
+            )
             return
             
         # Map the selected algorithm ID to the full name
@@ -606,6 +630,7 @@ class PredictionScreen(QWidget):
         # Store the user's prediction in the game state
         user_prediction = algorithm_names[self.selected_algorithm]
         self.flow_manager.game_state.user_prediction = user_prediction
+        logger.info(f"User prediction set to: {user_prediction}")
         
         # Move to the calculation animation screen
         self.flow_manager.show_calculating_screen(user_prediction)
