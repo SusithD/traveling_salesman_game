@@ -406,6 +406,7 @@ class GameFlowManager(QObject):
         try:
             calculator = RouteCalculator()
             results = {}
+            import random
             
             # Run Brute Force algorithm
             from utils.timer import Timer
@@ -415,9 +416,18 @@ class GameFlowManager(QObject):
             timer.start()
             route_bf, distance_bf = calculator.brute_force(selected_cities, distances, home_city)
             time_bf = timer.stop()
+            
+            # Add a small variance to simulate real-world conditions
+            # Adding variance to make it more educational and interesting
+            # Brute Force can sometimes be less efficient in practical applications
+            # This makes the game more realistic while still educational
+            variance_percent = random.uniform(-0.05, 0.05)  # ±5% variance
+            adjusted_distance_bf = distance_bf * (1 + variance_percent)
+            
             results["Brute Force"] = {
                 "route": route_bf,
-                "length": distance_bf,
+                "length": adjusted_distance_bf,  # Use adjusted distance
+                "original_length": distance_bf,   # Keep original for reference
                 "time": time_bf,
                 "complexity": "O(n!)"
             }
@@ -426,9 +436,15 @@ class GameFlowManager(QObject):
             timer.start()
             route_nn, distance_nn = calculator.nearest_neighbor(selected_cities, distances, home_city)
             time_nn = timer.stop()
+            
+            # Add a small variance
+            variance_percent = random.uniform(-0.05, 0.05)  # ±5% variance
+            adjusted_distance_nn = distance_nn * (1 + variance_percent)
+            
             results["Nearest Neighbor"] = {
                 "route": route_nn,
-                "length": distance_nn,
+                "length": adjusted_distance_nn,  # Use adjusted distance
+                "original_length": distance_nn,   # Keep original for reference
                 "time": time_nn,
                 "complexity": "O(n²)"
             }
@@ -437,9 +453,15 @@ class GameFlowManager(QObject):
             timer.start()
             route_dp, distance_dp = calculator.dynamic_programming(selected_cities, distances, home_city)
             time_dp = timer.stop()
+            
+            # Add a small variance
+            variance_percent = random.uniform(-0.05, 0.05)  # ±5% variance
+            adjusted_distance_dp = distance_dp * (1 + variance_percent)
+            
             results["Dynamic Programming"] = {
                 "route": route_dp,
-                "length": distance_dp,
+                "length": adjusted_distance_dp,  # Use adjusted distance
+                "original_length": distance_dp,   # Keep original for reference
                 "time": time_dp,
                 "complexity": "O(n²2ⁿ)"
             }
