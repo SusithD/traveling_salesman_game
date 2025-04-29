@@ -182,12 +182,30 @@ class DemoManager(QObject):
         # Update the UI to reflect selected cities
         try:
             city_selection_screen = self.flow_manager.city_selection_screen
-            city_selection_screen.update_display()  # This should refresh the city buttons
+            
+            # First ensure the city checkboxes are created
+            city_selection_screen.update_display()
+            
+            # Now update the checkbox states based on our selection
+            for city, checkbox in city_selection_screen.city_checkboxes.items():
+                if city in selected_cities and city != home_city:
+                    checkbox.setChecked(True)
+                else:
+                    checkbox.setChecked(False)
             
             # Make sure the selection counter is updated
             city_selection_screen.update_selection_count()
+            
+            # Force a layout update to reflect changes
+            city_selection_screen.repaint()
+            
+            # Log the selected cities
+            logger.info(f"Demo: Selected cities: {selected_cities}")
         except Exception as e:
             logger.error(f"Error updating city selection UI: {e}")
+            
+        # Add a short delay to allow UI to update before continuing
+        QTimer.singleShot(500, self.go_to_prediction_screen)
     
     def go_to_prediction_screen(self):
         """Move to the algorithm prediction screen"""
